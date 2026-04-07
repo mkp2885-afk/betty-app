@@ -103,6 +103,18 @@ function BettyApp() {
     if (!saveContent.trim() && !saveTitle.trim()) return;
     setSaving(true);
 
+    const fallbackRecipe = {
+      id: Date.now(),
+      title: saveTitle.trim() || "My Recipe",
+      time: "? min",
+      tags: ["saved"],
+      img: "🍽️",
+      photo: savePhoto || null,
+      betty: "Saved! Betty will help you cook it 🍳",
+      steps: saveContent.trim() ? saveContent.split('\n').filter(l => l.trim()).map(l => l.trim()) : ["Follow the recipe"],
+      ingredients: [],
+    };
+
     try {
       const prompt = saveTitle.trim()
         ? `Recipe title: ${saveTitle}\n\nRecipe content:\n${saveContent}`
@@ -114,37 +126,42 @@ function BettyApp() {
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 2000,
-          system: `You are Betty, a recipe extraction and creation expert. The user will give you either a recipe title and content, or raw pasted recipe text, or a description. Extract or create a proper structured recipe. ALWAYS return valid JSON only, no markdown, no explanation: {"title": "Recipe Name", "time": "X min", "tags": ["tag1", "tag2"], "betty": "betty funny one-line comment about this recipe", "steps": ["step 1", "step 2"], "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity"]}`,
+          system: `You are Betty, a recipe extraction expert. Extract or create a structured recipe from the user input. ALWAYS return valid JSON only, no markdown: {"title": "Recipe Name", "time": "X min", "tags": ["tag1"], "betty": "funny one-line comment", "steps": ["step 1"], "ingredients": ["ingredient with quantity"]}`,
           messages: [{ role: "user", content: prompt }],
         }),
       });
 
       const data = await res.json();
-      const text = data.content?.map(c => c.text || "").join("").trim() || "{}";
+      const text = data.content?.map(c => c.text || "").join("").trim() || "";
       const clean = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
+
+      let parsed = null;
+      try { parsed = JSON.parse(clean); } catch { parsed = null; }
 
       const newRecipe = {
         id: Date.now(),
-        title: parsed.title || saveTitle || "My Recipe",
-        time: parsed.time || "? min",
-        tags: parsed.tags || ["saved"],
+        title: parsed?.title || saveTitle.trim() || "My Recipe",
+        time: parsed?.time || "? min",
+        tags: parsed?.tags || ["saved"],
         img: "🍽️",
         photo: savePhoto || null,
-        betty: parsed.betty || "Fresh save!",
-        steps: parsed.steps || ["Follow the recipe"],
-        ingredients: parsed.ingredients || [],
+        betty: parsed?.betty || "Fresh save! Betty approved 🌸",
+        steps: parsed?.steps?.length ? parsed.steps : fallbackRecipe.steps,
+        ingredients: parsed?.ingredients || [],
       };
 
       setRecipes(prev => [newRecipe, ...prev]);
       setBettyMsg(getRandom(SAVING_MSGS));
-      setSaveTitle("");
-      setSaveContent("");
-      setSavePhoto(null);
-      setShowSaveForm(false);
     } catch (e) {
-      setBettyMsg("Betty had a brain glitch. Try again — she believes in second chances 😅");
+      // Even if AI fails, always save the recipe
+      setRecipes(prev => [fallbackRecipe, ...prev]);
+      setBettyMsg("Saved! Betty's wifi was a bit dramatic but your recipe is safe 🌸");
     }
+
+    setSaveTitle("");
+    setSaveContent("");
+    setSavePhoto(null);
+    setShowSaveForm(false);
     setSaving(false);
   };
 
