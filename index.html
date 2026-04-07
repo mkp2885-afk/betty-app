@@ -56,8 +56,54 @@ const DEFAULT_RECIPES = [
 
 const TABS = ["saved", "tonight", "cook", "betty"];
 
-const loadRecipes = () => { try { const s = localStorage.getItem('betty_recipes'); return s ? JSON.parse(s) : DEFAULT_RECIPES; } catch { return DEFAULT_RECIPES; } };
-const saveToStorage = (recipes) => { try { localStorage.setItem('betty_recipes', JSON.stringify(recipes)); } catch {} };
+const SUPABASE_URL = "https://mfrvblouafwgzknikvjc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_HMEZDito_lYhxDC3Z92qdQ_P2U_19Jp";
+
+const sbFetch = (path, options = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  ...options,
+  headers: {
+    "Content-Type": "application/json",
+    "apikey": SUPABASE_KEY,
+    "Authorization": `Bearer ${SUPABASE_KEY}`,
+    "Prefer": options.prefer || "return=representation",
+    ...(options.headers || {}),
+  },
+});
+
+const loadRecipesFromDB = async () => {
+  try {
+    const res = await sbFetch("recipes?order=created_at.desc");
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return data.map(r => ({
+        ...r,
+        tags: JSON.parse(r.tags || '[]'),
+        steps: JSON.parse(r.steps || '[]'),
+        ingredients: JSON.parse(r.ingredients || '[]'),
+      }));
+    }
+    return DEFAULT_RECIPES;
+  } catch { return DEFAULT_RECIPES; }
+};
+
+const saveRecipeToDB = async (recipe) => {
+  try {
+    await sbFetch("recipes", {
+      method: "POST",
+      prefer: "return=minimal",
+      body: JSON.stringify({
+        title: recipe.title,
+        time: recipe.time,
+        tags: JSON.stringify(recipe.tags),
+        img: recipe.img,
+        betty: recipe.betty,
+        steps: JSON.stringify(recipe.steps),
+        ingredients: JSON.stringify(recipe.ingredients),
+        photo: recipe.photo || null,
+      }),
+    });
+  } catch (e) { console.error("Save to DB failed:", e); }
+};
 
 function BettyApp() {
   const [screen, setScreen] = React.useState(() => { try { return localStorage.getItem('betty_done') ? "main" : "onboarding"; } catch { return "onboarding"; } });
@@ -66,7 +112,8 @@ function BettyApp() {
   const [dietary, setDietary] = React.useState(() => { try { return JSON.parse(localStorage.getItem('betty_dietary') || '[]'); } catch { return []; } });
   const [activeTab, setActiveTab] = React.useState("saved");
   const [bettyMsg, setBettyMsg] = React.useState(getRandom(GREETINGS));
-  const [recipes, setRecipes] = React.useState(loadRecipes);
+  const [recipes, setRecipes] = React.useState(DEFAULT_RECIPES);
+  const [recipesLoading, setRecipesLoading] = React.useState(true);
   const [showSaveForm, setShowSaveForm] = React.useState(false);
   const [saveTitle, setSaveTitle] = React.useState("");
   const [saveContent, setSaveContent] = React.useState("");
@@ -86,7 +133,13 @@ function BettyApp() {
   const chatEndRef = React.useRef(null);
 
   React.useEffect(() => { if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [chatHistory]);
-  React.useEffect(() => { saveToStorage(recipes); }, [recipes]);
+  React.useEffect(() => {
+    loadRecipesFromDB().then(data => {
+      setRecipes(data);
+      setRecipesLoading(false);
+    });
+  }, []);
+
   React.useEffect(() => { try { localStorage.setItem('betty_shopping', JSON.stringify(shoppingList)); } catch {} }, [shoppingList]);
 
   const BETTY_SYSTEM = `You are Betty, a witty, warm, slightly sassy AI cooking assistant for a Gen Z recipe app. Always respond in whatever language the user writes in. Be short, punchy and funny. You are polite but if someone asks something weird or off-topic, respond with a clever funny food-related deflection. For example if asked "does he love me?" say "Well, they say the way to someone's heart is through their stomach — why not cook them their favourite meal and find out? 😉". Always bring it back to food in a charming way.${dietary.length ? ` User dietary preferences: ${dietary.join(", ")}.` : ""}${userName ? ` User's name is ${userName}.` : ""}`;
@@ -151,10 +204,12 @@ function BettyApp() {
       };
 
       setRecipes(prev => [newRecipe, ...prev]);
+      saveRecipeToDB(newRecipe);
       setBettyMsg(getRandom(SAVING_MSGS));
     } catch (e) {
       // Even if AI fails, always save the recipe
       setRecipes(prev => [fallbackRecipe, ...prev]);
+      saveRecipeToDB(fallbackRecipe);
       setBettyMsg("Saved! Betty's wifi was a bit dramatic but your recipe is safe 🌸");
     }
 
@@ -371,7 +426,9 @@ function BettyApp() {
                 <span style={{ fontSize: 20, color: "#fff", fontWeight: "bold" }}>+</span> Save a new recipe
               </Btn>
 
-              <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Your cookbook ({recipes.length})</div>
+              <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+                {recipesLoading ? "Loading your cookbook... 🌸" : `Your cookbook (${recipes.length})`}
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {recipes.map((r, idx) => (
                   <div key={r.id} style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 4px 14px rgba(180,220,200,0.18)", border: `1.5px solid ${C.border}` }}>
