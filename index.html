@@ -282,6 +282,7 @@ function BettyApp() {
   const [displayName, setDisplayName] = React.useState("");
   const [authError, setAuthError] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(false);
+  const [magicSent, setMagicSent] = React.useState(false);
   const [user, setUser] = React.useState(null);
   const [dietary, setDietary] = React.useState([]);
   const [activeTab, setActiveTab] = React.useState("saved");
@@ -427,6 +428,20 @@ function BettyApp() {
     reader.readAsDataURL(file);
   };
 
+  const handleMagicLink = async () => {
+    if (!email) return;
+    setAuthLoading(true); setAuthError("");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin }
+      });
+      if (error) { setAuthError(error.message); }
+      else { setMagicSent(true); }
+    } catch { setAuthError(L.authError); }
+    setAuthLoading(false);
+  };
+
   const handleAuth = async () => {
     setAuthLoading(true); setAuthError("");
     try {
@@ -543,3 +558,479 @@ function BettyApp() {
       {children}
     </div>
   );
+
+  const iStyle = { width: "100%", padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, background: C.bg, outline: "none", color: C.text };
+  const taStyle = { ...iStyle, resize: "none", boxSizing: "border-box", lineHeight: 1.6 };
+
+  // ─── ONBOARDING ───
+  if (screen === "onboarding") return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: "390px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ height: 320, position: "relative", overflow: "hidden", flexShrink: 0 }}>
+          <img src={BG_IMG} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+          <div style={{ position: "absolute", right: 0, bottom: 0, width: 170, height: 250 }}>
+            <img src={BETTY_IMG} alt="Betty" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom center" }} />
+          </div>
+          <div style={{ position: "absolute", bottom: 0, left: 20, paddingBottom: 16 }}>
+            <div style={{ fontSize: 42, fontWeight: "bold", color: C.text, letterSpacing: "-1.5px", lineHeight: 1, textShadow: "0 2px 8px rgba(255,255,255,0.8)" }}>betty.</div>
+            <div style={{ fontSize: 11, color: C.textMuted, letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 4 }}>Your recipe bestie</div>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, background: C.bg, padding: "32px 24px", display: "flex", flexDirection: "column" }}>
+
+          {/* Step 0: Language */}
+          {onboardStep === 0 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob1Title}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob1Sub}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+              {[{ code: "en", label: "English", sub: "" }, { code: "bg", label: "Български", sub: "" }].map(lang => (
+                <button key={lang.code} onClick={() => { setLanguage(lang.code); try { localStorage.setItem('betty_lang', lang.code); } catch {} }} style={{ padding: "16px 20px", borderRadius: 16, border: `2px solid ${language === lang.code ? C.btn : C.border}`, background: language === lang.code ? C.pink : "#fff", cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>{lang.label}</div>
+                  {lang.sub && <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{lang.sub}</div>}
+                </button>
+              ))}
+            </div>
+            <Btn onClick={() => setOnboardStep(1)} style={{ padding: "14px", fontSize: 15 }}>{L.next}</Btn>
+          </div>}
+
+          {/* Step 1: Login/Signup */}
+          {onboardStep === 1 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob2Title}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob2Sub}</div>
+            {magicSent ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+                <div style={{ fontSize: 16, fontWeight: "bold", color: C.text, marginBottom: 8 }}>
+                  {language === "bg" ? "Провери имейла си!" : "Check your email!"}
+                </div>
+                <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>
+                  {language === "bg" ? `Изпратихме магически линк на ${email}. Кликни го и ще влезеш автоматично!` : `We sent a magic link to ${email}. Click it and you'll be logged in instantly!`}
+                </div>
+                <button onClick={() => { setMagicSent(false); setEmail(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                  {language === "bg" ? "Използвай друг имейл" : "Use a different email"}
+                </button>
+              </div>
+            ) : (
+              <div>
+                {authMode === "signup" && <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={L.displayNamePlaceholder} style={{ ...iStyle, marginBottom: 10 }} />}
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder={L.emailPlaceholder} type="email" style={{ ...iStyle, marginBottom: 10 }} />
+
+                {authMode !== "magic" && (
+                  <input value={password} onChange={e => setPassword(e.target.value)} placeholder={L.passwordPlaceholder} type="password" style={{ ...iStyle, marginBottom: 10 }} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+                )}
+
+                {authError && <div style={{ fontSize: 12, color: "#e57373", marginBottom: 10, padding: "8px 12px", background: "#ffebee", borderRadius: 8 }}>{authError}</div>}
+
+                {authMode === "magic" ? (
+                  <Btn onClick={handleMagicLink} disabled={authLoading || !email} style={{ padding: "14px", fontSize: 15, marginBottom: 12, width: "100%" }}>
+                    {authLoading ? "..." : language === "bg" ? "Изпрати магически линк ✨" : "Send magic link ✨"}
+                  </Btn>
+                ) : (
+                  <Btn onClick={handleAuth} disabled={authLoading || !email || !password} style={{ padding: "14px", fontSize: 15, marginBottom: 12, width: "100%" }}>
+                    {authLoading ? "..." : authMode === "signup" ? L.signUp : L.signIn}
+                  </Btn>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button onClick={() => { setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                    {authMode === "signup" ? L.ob2Login : L.ob2Signup}
+                  </button>
+                  <button onClick={() => { setAuthMode("magic"); setAuthError(""); setPassword(""); }} style={{ background: "none", border: "none", color: C.btn, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                    {language === "bg" ? "✨ Влез без парола (магически линк)" : "✨ Sign in without password (magic link)"}
+                  </button>
+                  {authMode === "magic" && (
+                    <button onClick={() => { setAuthMode("signin"); setAuthError(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                      {language === "bg" ? "Използвай парола вместо това" : "Use password instead"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>}
+
+          {/* Step 2: Dietary */}
+          {onboardStep === 2 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob3Title}{displayName ? ` ${displayName}` : ""}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob3Sub}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 32 }}>
+              {DIETARY_OPTIONS.map(opt => <button key={opt} onClick={() => setDietary(p => p.includes(opt) ? p.filter(x => x !== opt) : [...p, opt])} style={{ padding: "10px 16px", borderRadius: 24, border: `1.5px solid ${dietary.includes(opt) ? C.btn : C.border}`, background: dietary.includes(opt) ? C.pink : "#fff", color: dietary.includes(opt) ? C.text : C.textMuted, fontSize: 13, cursor: "pointer" }}>{opt}</button>)}
+            </div>
+            <Btn onClick={() => { try { localStorage.setItem('betty_dietary', JSON.stringify(dietary)); localStorage.setItem('betty_lang', language); } catch {} setMsg(L.welcome(displayName)); setScreen("main"); }} style={{ padding: "14px", fontSize: 15 }}>
+              {dietary.length ? L.letsGo : L.skip}
+            </Btn>
+          </div>}
+
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 24 }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ width: i === onboardStep ? 20 : 8, height: 8, borderRadius: 4, background: i === onboardStep ? C.btn : C.border, transition: "width 0.3s" }} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── MAIN APP ───
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: "390px", minHeight: "100vh", background: C.bg, position: "relative" }}>
+
+        {/* Settings */}
+        {showSettings && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "60vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.settings}</div>
+                <button onClick={() => setShowSettings(false)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{L.language}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+                {[{ code: "en", label: "🇬🇧 English" }, { code: "bg", label: "🇧🇬 Български" }].map(lang => (
+                  <button key={lang.code} onClick={() => { setLanguage(lang.code); try { localStorage.setItem('betty_lang', lang.code); } catch {} }} style={{ padding: "12px 16px", borderRadius: 12, border: `2px solid ${language === lang.code ? C.btn : C.border}`, background: language === lang.code ? C.pink : "#fff", cursor: "pointer", textAlign: "left", fontSize: 14, fontWeight: "bold", color: C.text }}>
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{L.account}</div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 12 }}>{user?.email}</div>
+              <button onClick={handleSignOut} style={{ width: "100%", padding: "12px", background: "#fff", border: "1.5px solid #ffcdd2", borderRadius: 12, color: "#e57373", fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.signOut}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Save Form */}
+        {showSaveForm && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.saveFormTitle}</div>
+                <button onClick={() => { setShowSaveForm(false); setSaveTitle(""); setSaveIngredients(""); setSaveSteps(""); setSaveTime(""); setSaveTags(""); setSavePhoto(null); }} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              <Field label={L.fTitle}><input value={saveTitle} onChange={e => setSaveTitle(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTime}><input value={saveTime} onChange={e => setSaveTime(e.target.value)} placeholder="e.g. 30 min" style={iStyle} /></Field>
+              <Field label={L.fTags}><input value={saveTags} onChange={e => setSaveTags(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fPhoto}>
+                <label style={{ display: "block", cursor: "pointer" }}>
+                  <div style={{ width: "100%", height: savePhoto ? "auto" : 80, borderRadius: 12, border: `1.5px dashed ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {savePhoto ? <img src={savePhoto} alt="" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 12 }} /> : <span style={{ color: C.textMuted, fontSize: 13 }}>{L.uploadPhoto}</span>}
+                  </div>
+                  <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, setSavePhoto)} style={{ display: "none" }} />
+                </label>
+              </Field>
+              <Field label={L.fIngredients}><textarea value={saveIngredients} onChange={e => setSaveIngredients(e.target.value)} placeholder={L.ingPh} rows={5} style={taStyle} /></Field>
+              <Field label={L.fSteps}><textarea value={saveSteps} onChange={e => setSaveSteps(e.target.value)} placeholder={L.stepsPh} rows={5} style={taStyle} /></Field>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 16, fontStyle: "italic" }}>{L.pasteHint}</div>
+              <Btn onClick={handleSave} disabled={saving || (!saveIngredients.trim() && !saveSteps.trim() && !saveTitle.trim())} style={{ width: "100%", padding: "14px", fontSize: 15 }}>{L.saveRecipeBtn(saving)}</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Form */}
+        {editingRecipe && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.editTitle}</div>
+                <button onClick={() => setEditingRecipe(null)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              <Field label={L.fTitle}><input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTime}><input value={editTime} onChange={e => setEditTime(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTags}><input value={editTags} onChange={e => setEditTags(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fPhoto}>
+                <label style={{ display: "block", cursor: "pointer" }}>
+                  <div style={{ width: "100%", height: editPhoto ? "auto" : 70, borderRadius: 12, border: `1.5px dashed ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {editPhoto ? <img src={editPhoto} alt="" style={{ width: "100%", maxHeight: 140, objectFit: "cover", borderRadius: 12 }} /> : <span style={{ color: C.textMuted, fontSize: 13 }}>{L.changePhoto}</span>}
+                  </div>
+                  <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, setEditPhoto)} style={{ display: "none" }} />
+                </label>
+              </Field>
+              <Field label={L.fIngredients}><textarea value={editIngredients} onChange={e => setEditIngredients(e.target.value)} rows={5} style={taStyle} /></Field>
+              <Field label={L.fSteps}><textarea value={editSteps} onChange={e => setEditSteps(e.target.value)} rows={5} style={taStyle} /></Field>
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button onClick={() => { if (window.confirm(L.deleteConfirm)) handleDelete(editingRecipe.id); }} style={{ flex: 1, padding: "13px", background: "#fff", border: "1.5px solid #ffcdd2", borderRadius: 14, fontSize: 13, color: "#e57373", cursor: "pointer" }}>{L.deleteBtn}</button>
+                <Btn onClick={handleEditSave} style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14 }}>{L.saveChanges}</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview */}
+        {previewRecipe && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "85vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{previewRecipe.loading ? L.previewLoading : `${previewRecipe.img || "🍽️"} ${previewRecipe.title}`}</div>
+                <button onClick={() => setPreviewRecipe(null)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              {previewRecipe.loading ? <div style={{ textAlign: "center", padding: "40px 0", color: C.textMuted, fontStyle: "italic" }}><div style={{ fontSize: 40, marginBottom: 12 }}>👩‍🍳</div>{L.previewLoadingSub}</div> : (
+                <div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, background: C.blue, padding: "3px 12px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>⏱ {previewRecipe.time}</span>
+                    {previewRecipe.calories && <span style={{ fontSize: 12, background: C.yellow, padding: "3px 12px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>🔥 {previewRecipe.calories} {L.perServing}</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: C.btn, fontStyle: "italic", marginBottom: 16 }}>{previewRecipe.betty}</div>
+                  <div style={{ fontSize: 12, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{L.fIngredients}</div>
+                  {previewRecipe.ingredients?.map((ing, i) => <div key={i} style={{ fontSize: 14, color: C.text, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>• {ing}</div>)}
+                  <div style={{ fontSize: 12, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 16, marginBottom: 8 }}>{L.fSteps}</div>
+                  {previewRecipe.steps?.map((step, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.pink, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold", color: "#fff", flexShrink: 0 }}>{i + 1}</div>
+                      <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{step}</div>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                    <button onClick={() => setPreviewRecipe(null)} style={{ flex: 1, padding: "13px", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 14, fontSize: 13, color: C.textMuted, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.notForMe}</button>
+                    <Btn onClick={() => { setRecipes(prev => [previewRecipe, ...prev]); saveRecipeToDB(previewRecipe); setMsg(L.saved(previewRecipe.title)); setPreviewRecipe(null); setSelectedRecipe(previewRecipe); setCookStep(0); setActiveTab("cook"); }} style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14 }}>{L.saveAndCook}</Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Shopping */}
+        {showShopping && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "70vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.shoppingTitle}</div>
+                <button onClick={() => setShowShopping(false)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted }}>{L.done}</button>
+              </div>
+              {shoppingList.length === 0 && <div style={{ color: C.textMuted, fontStyle: "italic", fontSize: 14 }}>{L.shoppingEmpty}</div>}
+              {shoppingList.length > 0 && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <button onClick={() => { const allChecked = shoppingList.every(item => shoppingChecked[item]); const newChecked = {}; if (!allChecked) { shoppingList.forEach(item => { newChecked[item] = "selected"; }); } setShoppingChecked(newChecked); }} style={{ flex: 1, padding: "10px", background: C.bettyBubble, border: `1.5px solid ${C.pink}`, borderRadius: 12, color: C.btn, fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: "bold" }}>
+                    {shoppingList.every(item => shoppingChecked[item]) ? L.deselectAll : L.selectAll}
+                  </button>
+                  <button onClick={() => { setShoppingList([]); setShoppingChecked({}); }} style={{ flex: 1, padding: "10px", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.clearList}</button>
+                </div>
+              )}
+              {shoppingList.map((item, i) => (
+                <div key={i} onClick={() => setShoppingChecked(p => { const cur = p[item]; if (!cur) return { ...p, [item]: "done" }; if (cur === "done") return { ...p, [item]: false }; return { ...p, [item]: "done" }; })} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${shoppingChecked[item] ? C.btn : C.border}`, background: shoppingChecked[item] ? C.pink : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{shoppingChecked[item] ? "✓" : ""}</div>
+                  <div style={{ fontSize: 14, color: C.text, textDecoration: shoppingChecked[item] === "done" ? "line-through" : "none", opacity: shoppingChecked[item] === "done" ? 0.5 : 1 }}>{item}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div style={{ background: `linear-gradient(135deg, ${C.header} 0%, #C8EEE0 100%)`, padding: "48px 24px 20px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -30, right: -30, width: 130, height: 130, background: C.pink, borderRadius: "50%", opacity: 0.35 }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <BettyFace size={54} mood={bettyMood} />
+              <div>
+                <div style={{ fontSize: 30, fontWeight: "bold", color: C.text, letterSpacing: "-1px", lineHeight: 1 }}>betty.</div>
+                <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 2 }}>{L.hi(displayName)}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowSettings(true)} style={{ background: "rgba(255,255,255,0.7)", border: "none", borderRadius: 12, padding: "8px 10px", cursor: "pointer", fontSize: 18 }}>⚙️</button>
+              <button onClick={() => setShowShopping(true)} style={{ background: "rgba(255,255,255,0.7)", border: "none", borderRadius: 12, padding: "8px 12px", cursor: "pointer", fontSize: 20, position: "relative" }}>
+                🛒{shoppingList.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: C.btn, color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>{shoppingList.length}</span>}
+              </button>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, display: "flex", alignItems: "flex-end", gap: 8 }}>
+            <BettyFace size={30} mood={bettyMood} />
+            <div style={{ background: "#fff", borderRadius: "16px 16px 16px 4px", padding: "10px 16px", fontSize: 13, color: C.text, fontStyle: "italic", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", maxWidth: "80%" }}>{bettyMsg}</div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", background: C.tabBg }}>
+          {TABS.map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ flex: 1, padding: "11px 0", background: activeTab === tab ? C.btn : "transparent", border: "none", cursor: "pointer", fontSize: 10, fontWeight: "bold", color: activeTab === tab ? "#fff" : C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", transition: "all 0.2s", borderRadius: activeTab === tab ? "8px 8px 0 0" : 0 }}>
+              {tab === "betty" ? L.tabBetty : tab === "cook" ? L.tabCook : tab === "saved" ? L.tabCookbook : L.tabFridge}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: "20px 20px 100px" }}>
+
+          {/* COOKBOOK */}
+          {activeTab === "saved" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "10px 14px", border: `1.5px solid ${C.border}`, marginBottom: 10 }}>
+                <span style={{ fontSize: 16, color: C.textMuted }}>🔍</span>
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={L.searchPh} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent", color: C.text }} />
+                {searchQuery && <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>}
+              </div>
+              <Btn onClick={() => setShowSaveForm(true)} style={{ width: "100%", padding: "13px", borderRadius: 14, fontSize: 14, marginBottom: 12 }}>{L.saveBtn}</Btn>
+              {allTags.length > 0 && (
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
+                  <button onClick={() => setActiveFilter(null)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${!activeFilter ? C.btn : C.border}`, background: !activeFilter ? C.pink : "#fff", color: !activeFilter ? C.text : C.textMuted, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>All</button>
+                  {allTags.map(tag => <button key={tag} onClick={() => setActiveFilter(activeFilter === tag ? null : tag)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${activeFilter === tag ? C.btn : C.border}`, background: activeFilter === tag ? C.pink : "#fff", color: activeFilter === tag ? C.text : C.textMuted, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>{tag}</button>)}
+                </div>
+              )}
+              <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+                {recipesLoading ? L.cookbookLoading : L.cookbookCount(filteredRecipes.length)}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {filteredRecipes.map((r, idx) => (
+                  <div key={r.id} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 14px rgba(180,220,200,0.18)", border: `1.5px solid ${C.border}`, display: "flex", flexDirection: "column" }}>
+                    <div onClick={() => { setSelectedRecipe(r); setCookStep(0); setActiveTab("cook"); setMsg(`${L.nowCooking}: ${r.title}! 🍳`); }} style={{ cursor: "pointer" }}>
+                      {r.photo ? <img src={r.photo} alt={r.title} style={{ width: "100%", height: 110, objectFit: "cover" }} /> : <div style={{ width: "100%", height: 110, background: cardAccents[idx % cardAccents.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>{r.img}</div>}
+                    </div>
+                    <div style={{ padding: "10px 10px 8px", flex: 1, display: "flex", flexDirection: "column" }}>
+                      <div onClick={() => { setSelectedRecipe(r); setCookStep(0); setActiveTab("cook"); }} style={{ cursor: "pointer" }}>
+                        <div style={{ fontWeight: "bold", fontSize: 13, color: C.text, marginBottom: 3, lineHeight: 1.3 }}>{r.title}</div>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, background: C.blue, padding: "1px 8px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>⏱ {r.time}</span>
+                          {r.calories && <span style={{ fontSize: 11, background: C.yellow, padding: "1px 8px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>🔥 {r.calories}</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button onClick={() => addToShopping(r.ingredients || [])} style={{ flex: 1, padding: "6px 4px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.textMuted, cursor: "pointer" }}>🛒</button>
+                        <button onClick={() => { setSelectedRecipe(r); setChatHistory([]); setChatMoods([]); setActiveTab("betty"); }} style={{ flex: 1, padding: "6px 4px", background: C.bettyBubble, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.btn, cursor: "pointer" }}>👩‍🍳</button>
+                        <button onClick={() => openEdit(r)} style={{ flex: 1, padding: "6px 4px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.textMuted, cursor: "pointer" }}>✏️</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {filteredRecipes.length === 0 && !recipesLoading && <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted, fontStyle: "italic" }}>{L.noRecipes(searchQuery)}</div>}
+            </div>
+          )}
+
+          {/* FRIDGE */}
+          {activeTab === "tonight" && (
+            <div>
+              <div style={{ background: "#fff", borderRadius: 20, padding: 18, border: `1.5px solid ${C.border}`, boxShadow: "0 4px 16px rgba(180,220,200,0.2)", marginBottom: 16 }}>
+                <div style={{ fontWeight: "bold", fontSize: 16, color: C.text, marginBottom: 4 }}>{L.fridgeTitle}</div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 12, fontStyle: "italic" }}>{L.fridgeSub}</div>
+                <textarea value={fridgeItems} onChange={(e) => setFridgeItems(e.target.value)} placeholder={L.fridgePh} rows={3} style={taStyle} />
+                <Btn onClick={handleFridge} disabled={fridgeLoading} style={{ marginTop: 10, width: "100%", padding: "13px", fontSize: 14, borderRadius: 12 }}>{L.askBettyBtn(fridgeLoading)}</Btn>
+              </div>
+              {fridgeResult && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{L.fridgePicks}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {fridgeResult.recipes?.map((r, i) => (
+                      <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.border}`, boxShadow: "0 4px 14px rgba(180,220,200,0.18)" }}>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                          <div style={{ width: 48, height: 48, background: [C.pink, C.blue, C.green][i % 3], borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{r.emoji}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: "bold", fontSize: 15, color: C.text }}>{r.name}</div>
+                            <div style={{ fontSize: 12, color: C.textMuted, fontStyle: "italic", marginTop: 2 }}>{r.why}</div>
+                            <div style={{ fontSize: 11, background: C.blue, display: "inline-block", padding: "2px 10px", borderRadius: 20, color: C.text, fontWeight: "bold", marginTop: 4 }}>⏱ {r.time}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => fetchFullRecipe(r, false)} style={{ flex: 1, padding: "10px", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 13, color: C.text, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.viewRecipe}</button>
+                          <Btn onClick={() => fetchFullRecipe(r, true)} style={{ flex: 1, padding: "10px", fontSize: 13, borderRadius: 12 }}>{L.saveAndCook}</Btn>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* COOK */}
+          {activeTab === "cook" && (
+            <div>
+              {!selectedRecipe ? (
+                <div style={{ background: "#fff", borderRadius: 18, padding: 24, border: `1.5px solid ${C.border}`, textAlign: "center" }}>
+                  <BettyFace size={60} mood="warm" style={{ margin: "0 auto 16px" }} />
+                  <div style={{ color: C.textMuted, fontStyle: "italic", fontSize: 14, lineHeight: 1.7 }}>{L.noCook}</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ background: `linear-gradient(135deg, ${C.pink}, ${C.blue})`, borderRadius: 18, padding: 16, marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>{L.nowCooking}</div>
+                    <div style={{ fontWeight: "bold", color: "#fff", fontSize: 20, marginBottom: 4 }}>{selectedRecipe.img} {selectedRecipe.title}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{L.stepOf(cookStep + 1, selectedRecipe.steps.length)}{selectedRecipe.calories ? ` · 🔥 ${selectedRecipe.calories} ${L.perServing}` : ""}</div>
+                    <div style={{ marginTop: 10, height: 6, background: "rgba(255,255,255,0.3)", borderRadius: 3 }}>
+                      <div style={{ height: "100%", background: "#fff", borderRadius: 3, width: `${((cookStep + 1) / selectedRecipe.steps.length) * 100}%`, transition: "width 0.4s" }} />
+                    </div>
+                  </div>
+                  {selectedRecipe.ingredients?.length > 0 && <button onClick={() => addToShopping(selectedRecipe.ingredients)} style={{ width: "100%", padding: "12px", background: C.bettyBubble, border: `1.5px solid ${C.pink}`, borderRadius: 14, fontSize: 13, color: C.btn, cursor: "pointer", marginBottom: 16, fontFamily: "Georgia, serif", fontWeight: "bold" }}>{L.addAll}</button>}
+                  <div style={{ background: "#fff", borderRadius: 18, padding: 20, border: `1.5px solid ${C.border}`, marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{L.stepOf(cookStep + 1, selectedRecipe.steps.length)}</div>
+                    <div style={{ fontSize: 17, color: C.text, lineHeight: 1.6, fontWeight: "bold" }}>{selectedRecipe.steps[cookStep]}</div>
+                  </div>
+                  <div style={{ background: "#fff", borderRadius: 18, padding: 16, border: `1.5px solid ${C.border}`, marginBottom: 16 }}>
+                    {selectedRecipe.steps.map((step, i) => (
+                      <div key={i} onClick={() => setCookStep(i)} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 0", borderBottom: i < selectedRecipe.steps.length - 1 ? `1px solid ${C.border}` : "none", cursor: "pointer", opacity: i < cookStep ? 0.4 : 1 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: i === cookStep ? C.btn : i < cookStep ? C.green : C.bg, border: `2px solid ${i === cookStep ? C.btn : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold", color: i <= cookStep ? "#fff" : C.textMuted, flexShrink: 0 }}>{i < cookStep ? "✓" : i + 1}</div>
+                        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, paddingTop: 3 }}>{step}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={() => setCookStep(s => Math.max(0, s - 1))} disabled={cookStep === 0} style={{ flex: 1, padding: "13px", background: cookStep === 0 ? "#ddd" : C.bg, border: `1.5px solid ${C.border}`, borderRadius: 14, fontSize: 14, color: cookStep === 0 ? "#bbb" : C.text, cursor: cookStep === 0 ? "default" : "pointer" }}>{L.back}</button>
+                    <Btn onClick={() => { if (cookStep < selectedRecipe.steps.length - 1) { setCookStep(s => s + 1); } else { setMsg(L.didIt); setBettyMood("excited"); setSelectedRecipe(null); setActiveTab("betty"); } }} style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14 }}>
+                      {cookStep === selectedRecipe.steps.length - 1 ? L.doneBtn : L.nextStep}
+                    </Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ASK BETTY */}
+          {activeTab === "betty" && (
+            <div>
+              {selectedRecipe && (
+                <div style={{ background: `linear-gradient(135deg, ${C.pink}, ${C.blue})`, borderRadius: 18, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{ width: 40, height: 40, background: "rgba(255,255,255,0.5)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{selectedRecipe.img}</div>
+                  <div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{L.askingAbout}</div>
+                    <div style={{ fontWeight: "bold", color: "#fff", fontSize: 15 }}>{selectedRecipe.title}</div>
+                  </div>
+                  <button onClick={() => { setSelectedRecipe(null); setChatHistory([]); setChatMoods([]); }} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.3)", border: "none", color: "#fff", cursor: "pointer", fontSize: 16, borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                </div>
+              )}
+              {!selectedRecipe && chatHistory.length === 0 && (
+                <div>
+                  <div style={{ background: "#fff", borderRadius: 18, padding: 18, border: `1.5px solid ${C.border}`, marginBottom: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <BettyFace size={54} mood="warm" rounded />
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: "bold", color: C.text }}>{L.hey(displayName)}</div>
+                        <div style={{ fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>{L.askAnything}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{L.tryAsking}</div>
+                  {(language === "bg"
+                    ? ["Какво мога да сготвя с 3 яйца?", "Как да разбера кога олиото е горещо?", "Направи тази рецепта без глутен", "Обича ли ме? 😂"]
+                    : ["What can I make with 3 eggs?", "How do I know when oil is hot enough?", "Make this recipe dairy-free", "Does he love me? 😂"]
+                  ).map(q => <div key={q} onClick={() => setChatMsg(q)} style={{ background: "#fff", borderRadius: 12, padding: "10px 14px", marginBottom: 8, border: `1.5px solid ${C.border}`, fontSize: 13, color: C.text, cursor: "pointer" }}>{q}</div>)}
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16, maxHeight: 320, overflowY: "auto" }}>
+                {chatHistory.map((msg, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                    {msg.role === "assistant" && <BettyFace size={36} mood={chatMoods[Math.floor(i/2)] || "happy"} style={{ marginRight: 8, alignSelf: "flex-end" }} />}
+                    <div style={{ maxWidth: "75%", padding: "10px 14px", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: msg.role === "user" ? C.userBubble : C.bettyBubble, color: C.text, fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <BettyFace size={36} mood="thinking" />
+                    <div style={{ padding: "10px 14px", background: C.bettyBubble, borderRadius: "18px 18px 18px 4px", fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>{L.bettyTyping}</div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              <div style={{ display: "flex", gap: 8, background: "#fff", borderRadius: 18, padding: 10, border: `1.5px solid ${C.border}`, boxShadow: "0 4px 14px rgba(180,220,200,0.2)" }}>
+                <input value={chatMsg} onChange={(e) => setChatMsg(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleChat()} placeholder={L.askPh} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent", color: C.text }} />
+                <Btn onClick={handleChat} disabled={chatLoading} style={{ padding: "8px 14px", fontSize: 16, borderRadius: 12 }}>↑</Btn>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<BettyApp />);
+  </script>
+</body>
+</html>
