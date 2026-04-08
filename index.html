@@ -38,36 +38,8 @@
   <script type="text/babel">
 
     // betty. — Copyright © 2026 Mariya Petrova. All Rights Reserved.
-    // Unauthorized use, copying or distribution is strictly prohibited.
-
-    // Basic protection
     (function() {
-      // Disable right click
       document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-      
-      // Disable common dev shortcuts
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12') { e.preventDefault(); }
-        if (e.ctrlKey && e.shiftKey && ['I','J','C','U'].includes(e.key)) { e.preventDefault(); }
-        if (e.ctrlKey && e.key === 'U') { e.preventDefault(); }
-        if (e.ctrlKey && e.key === 'S') { e.preventDefault(); }
-      });
-
-      // Detect devtools open
-      let devtoolsOpen = false;
-      const threshold = 160;
-      setInterval(() => {
-        if (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold) {
-          if (!devtoolsOpen) {
-            devtoolsOpen = true;
-            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Georgia,serif;color:#2D4A42;flex-direction:column;gap:16px;"><div style="font-size:48px">🍳</div><div style="font-size:20px;font-weight:bold">betty.</div><div style="font-size:14px;color:#7AA090">© 2026 Mariya Petrova. All rights reserved.</div></div>';
-          }
-        } else {
-          devtoolsOpen = false;
-        }
-      }, 1000);
-
-      // Console warning
       console.log('%cbetty. © 2026 Mariya Petrova', 'color: #EE85AA; font-size: 20px; font-weight: bold; font-family: Georgia, serif;');
       console.log('%cAll rights reserved. Unauthorized use is prohibited.', 'color: #7AA090; font-size: 12px;');
     })();
@@ -543,3 +515,522 @@ function BettyApp() {
       if (authMode === "signup") {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
         if (error) { setAuthError(error.message); setAuthLoading(false); return; }
+        if (data.user) { setUser(data.user); setOnboardStep(2); }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) { setAuthError(error.message); setAuthLoading(false); return; }
+        if (data.user) {
+          setUser(data.user);
+          const name = data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || "";
+          setDisplayName(name);
+          try { localStorage.setItem('betty_lang', language); localStorage.setItem('betty_dietary', JSON.stringify(dietary)); } catch {}
+          setMsg(L.welcome(name));
+          setScreen("main");
+        }
+      }
+    } catch (e) { setAuthError(L.authError); }
+    setAuthLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null); setRecipes([]); setShowSettings(false);
+    setScreen("onboarding"); setOnboardStep(0);
+    setEmail(""); setPassword(""); setDisplayName("");
+  };
+
+  const handleSave = async () => {
+    if (!saveTitle.trim() && !saveIngredients.trim() && !saveSteps.trim()) return;
+    setSaving(true);
+    const fallback = { id: Date.now(), title: saveTitle.trim() || "My Recipe", time: saveTime.trim() || "? min", tags: saveTags ? saveTags.split(",").map(t => t.trim()).filter(Boolean) : ["saved"], img: "🍽️", photo: savePhoto || null, betty: "Saved! Betty will help you cook it 🍳", steps: saveSteps.split("\n").map(s => s.trim()).filter(Boolean), ingredients: saveIngredients.split("\n").map(i => i.trim()).filter(Boolean), calories: null };
+    try {
+      const prompt = `Title: ${saveTitle}\nTime: ${saveTime}\nIngredients:\n${saveIngredients}\n\nHow to prepare:\n${saveSteps}`;
+      const data = await callBetty({ model: "claude-sonnet-4-20250514", max_tokens: 2000, system: `You are Betty. Structure this recipe and estimate calories per serving. IMPORTANT: Keep everything in the SAME LANGUAGE as the input — if the user wrote in Bulgarian, respond in Bulgarian; if in English, respond in English. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner in same language","steps":["step1"],"ingredients":["item with qty"],"calories":"~XXX kcal"}`, messages: [{ role: "user", content: prompt }] });
+      const clean = data.content?.map(c => c.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      let parsed = null; try { parsed = JSON.parse(clean); } catch {}
+      const newRecipe = { id: Date.now(), title: parsed?.title || fallback.title, time: parsed?.time || fallback.time, tags: parsed?.tags || fallback.tags, img: "🍽️", photo: savePhoto || null, betty: parsed?.betty || fallback.betty, steps: parsed?.steps?.length ? parsed.steps : fallback.steps, ingredients: parsed?.ingredients?.length ? parsed.ingredients : fallback.ingredients, calories: parsed?.calories || null };
+      setRecipes(prev => [newRecipe, ...prev]); saveRecipeToDB(newRecipe); setMsg(getRandom(L.saving));
+    } catch { setRecipes(prev => [fallback, ...prev]); saveRecipeToDB(fallback); setMsg(L.savingFallback); }
+    setSaveTitle(""); setSaveIngredients(""); setSaveSteps(""); setSaveTime(""); setSaveTags(""); setSavePhoto(null); setShowSaveForm(false); setSaving(false);
+  };
+
+  const openEdit = (recipe) => { setEditingRecipe(recipe); setEditTitle(recipe.title); setEditTime(recipe.time); setEditTags(recipe.tags.join(", ")); setEditSteps(recipe.steps.join("\n")); setEditIngredients(recipe.ingredients.join("\n")); setEditPhoto(recipe.photo || null); };
+
+  const handleEditSave = async () => {
+    const updated = { ...editingRecipe, title: editTitle.trim() || editingRecipe.title, time: editTime.trim() || editingRecipe.time, tags: editTags.split(",").map(t => t.trim()).filter(Boolean), steps: editSteps.split("\n").map(s => s.trim()).filter(Boolean), ingredients: editIngredients.split("\n").map(i => i.trim()).filter(Boolean), photo: editPhoto };
+    setRecipes(prev => prev.map(r => r.id === updated.id ? updated : r)); await updateRecipeInDB(updated); setEditingRecipe(null); setMsg(L.updated);
+  };
+
+  const handleDelete = async (id) => { setRecipes(prev => prev.filter(r => r.id !== id)); await deleteRecipeFromDB(id); setEditingRecipe(null); setMsg(L.deleted); };
+
+  const fetchFullRecipe = async (r, saveAfter = false) => {
+    setPreviewRecipe({ name: r.name, emoji: r.emoji, loading: true });
+    try {
+      const data = await callBetty({ model: "claude-sonnet-4-20250514", max_tokens: 2000, system: `You are Betty. Create a full recipe and estimate calories. Respond in ${L.bettyBgLang}. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner","steps":["step1"],"ingredients":["item with qty"],"calories":"~XXX kcal"}`, messages: [{ role: "user", content: `Create a full recipe for: ${r.name}` }] });
+      const clean = data.content?.map(c => c.text || "").join("").trim().replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      const fullRecipe = { id: Date.now(), title: parsed.title || r.name, time: parsed.time || r.time, tags: parsed.tags || ["saved"], img: r.emoji, photo: null, betty: parsed.betty || r.why, steps: parsed.steps || [], ingredients: parsed.ingredients || [], calories: parsed.calories || null };
+      setPreviewRecipe(fullRecipe);
+      if (saveAfter) { setRecipes(prev => [fullRecipe, ...prev]); saveRecipeToDB(fullRecipe); setMsg(L.saved(r.name)); setPreviewRecipe(null); setSelectedRecipe(fullRecipe); setCookStep(0); setActiveTab("cook"); }
+    } catch { setPreviewRecipe(null); setMsg(L.glitch); }
+  };
+
+  const handleFridge = async () => {
+    if (!fridgeItems.trim()) return;
+    setFridgeLoading(true); setFridgeResult(null);
+    try {
+      const data = await callBetty({ model: "claude-sonnet-4-20250514", max_tokens: 1500, system: BETTY_SYSTEM + ` Suggest 2-3 recipes from the ingredients. Return ONLY valid JSON: {"message":"betty comment","recipes":[{"name":"Name","emoji":"🍳","why":"one line","time":"X min"}]}`, messages: [{ role: "user", content: `I have: ${fridgeItems}. What can I make?` }] });
+      const raw = data.content?.map(c => c.text || "").join("").trim();
+      const clean = raw.replace(/```json|```/g, "").trim();
+      let parsed = null;
+      try { parsed = JSON.parse(clean); } catch { const m = clean.match(/\{[\s\S]*\}/); if (m) { try { parsed = JSON.parse(m[0]); } catch {} } }
+      if (parsed?.recipes) { setFridgeResult(parsed); setMsg(parsed.message || "Here's what Betty suggests! 🍳"); }
+      else { setFridgeResult({ message: L.glitch, recipes: [] }); }
+    } catch { setFridgeResult({ message: L.glitch, recipes: [] }); }
+    setFridgeLoading(false);
+  };
+
+  const handleChat = async () => {
+    if (!chatMsg.trim() || chatLoading) return;
+    const userMsg = chatMsg; setChatMsg("");
+    const newHistory = [...chatHistory, { role: "user", content: userMsg }];
+    setChatHistory(newHistory); setChatLoading(true);
+    try {
+      const data = await callBetty({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: BETTY_SYSTEM + (selectedRecipe ? ` Helping cook: "${selectedRecipe.title}".` : ""), messages: newHistory });
+      const reply = data.content?.map(c => c.text || "").join("") || L.glitch;
+      setChatHistory([...newHistory, { role: "assistant", content: reply }]);
+      setChatMoods(prev => [...prev, detectMood(reply)]);
+    } catch { setChatHistory([...newHistory, { role: "assistant", content: L.glitch }]); setChatMoods(prev => [...prev, 'scared']); }
+    setChatLoading(false);
+  };
+
+  const addToShopping = (items) => { setShoppingList(prev => [...new Set([...prev, ...items])]); setShowShopping(true); };
+
+  const iStyle = { width: "100%", padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, background: C.bg, outline: "none", color: C.text };
+  const taStyle = { ...iStyle, resize: "none", boxSizing: "border-box", lineHeight: 1.6 };
+
+  // ─── ONBOARDING ───
+  if (screen === "onboarding") return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: "390px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ height: 320, position: "relative", overflow: "hidden", flexShrink: 0 }}>
+          <img src={BG_IMG} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+          <div style={{ position: "absolute", right: 0, bottom: 0, width: 170, height: 250 }}>
+            <img src={BETTY_IMG} alt="Betty" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom center" }} />
+          </div>
+          <div style={{ position: "absolute", bottom: 0, left: 20, paddingBottom: 16 }}>
+            <div style={{ fontSize: 42, fontWeight: "bold", color: C.text, letterSpacing: "-1.5px", lineHeight: 1, textShadow: "0 2px 8px rgba(255,255,255,0.8)" }}>betty.</div>
+            <div style={{ fontSize: 11, color: C.textMuted, letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 4 }}>Your recipe bestie</div>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, background: C.bg, padding: "32px 24px", display: "flex", flexDirection: "column" }}>
+
+          {/* Step 0: Language */}
+          {onboardStep === 0 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob1Title}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob1Sub}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+              {[{ code: "en", label: "English", sub: "" }, { code: "bg", label: "Български", sub: "" }].map(lang => (
+                <button key={lang.code} onClick={() => { setLanguage(lang.code); try { localStorage.setItem('betty_lang', lang.code); } catch {} }} style={{ padding: "16px 20px", borderRadius: 16, border: `2px solid ${language === lang.code ? C.btn : C.border}`, background: language === lang.code ? C.pink : "#fff", cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ fontSize: 16, fontWeight: "bold", color: C.text }}>{lang.label}</div>
+                  {lang.sub && <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{lang.sub}</div>}
+                </button>
+              ))}
+            </div>
+            <Btn onClick={() => setOnboardStep(1)} style={{ padding: "14px", fontSize: 15 }}>{L.next}</Btn>
+          </div>}
+
+          {/* Step 1: Login/Signup */}
+          {onboardStep === 1 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob2Title}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob2Sub}</div>
+            {magicSent ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+                <div style={{ fontSize: 16, fontWeight: "bold", color: C.text, marginBottom: 8 }}>
+                  {language === "bg" ? "Провери имейла си!" : "Check your email!"}
+                </div>
+                <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>
+                  {language === "bg" ? `Изпратихме магически линк на ${email}. Кликни го и ще влезеш автоматично!` : `We sent a magic link to ${email}. Click it and you'll be logged in instantly!`}
+                </div>
+                <button onClick={() => { setMagicSent(false); setEmail(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                  {language === "bg" ? "Използвай друг имейл" : "Use a different email"}
+                </button>
+              </div>
+            ) : (
+              <div>
+                {authMode === "signup" && <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder={L.displayNamePlaceholder} style={{ ...iStyle, marginBottom: 10, border: `1.5px solid ${C.header}` }} />}
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder={L.emailPlaceholder} type="email" style={{ ...iStyle, marginBottom: 10, border: `1.5px solid ${C.header}` }} />
+
+                {authMode !== "magic" && (
+                  <input value={password} onChange={e => setPassword(e.target.value)} placeholder={L.passwordPlaceholder} type="password" style={{ ...iStyle, marginBottom: 10, border: `1.5px solid ${C.header}` }} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+                )}
+
+                {authError && <div style={{ fontSize: 12, color: "#e57373", marginBottom: 10, padding: "8px 12px", background: "#ffebee", borderRadius: 8 }}>{authError}</div>}
+
+                {authMode === "magic" ? (
+                  <Btn onClick={handleMagicLink} disabled={authLoading || !email} style={{ padding: "14px", fontSize: 15, marginBottom: 12, width: "100%" }}>
+                    {authLoading ? "..." : language === "bg" ? "Изпрати магически линк ✨" : "Send magic link ✨"}
+                  </Btn>
+                ) : (
+                  <Btn onClick={handleAuth} disabled={authLoading || !email || !password} style={{ padding: "14px", fontSize: 15, marginBottom: 12, width: "100%" }}>
+                    {authLoading ? "..." : authMode === "signup" ? L.signUp : L.signIn}
+                  </Btn>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button onClick={() => { setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                    {authMode === "signup" ? L.ob2Login : L.ob2Signup}
+                  </button>
+                  <button onClick={() => { setAuthMode("magic"); setAuthError(""); setPassword(""); }} style={{ background: "none", border: "none", color: C.btn, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                    {language === "bg" ? "✨ Влез без парола (магически линк)" : "✨ Sign in without password (magic link)"}
+                  </button>
+                  {authMode === "magic" && (
+                    <button onClick={() => { setAuthMode("signin"); setAuthError(""); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
+                      {language === "bg" ? "Използвай парола вместо това" : "Use password instead"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>}
+
+          {/* Step 2: Dietary */}
+          {onboardStep === 2 && <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 22, fontWeight: "bold", color: C.text, marginBottom: 8 }}>{L.ob3Title}{displayName ? ` ${displayName}` : ""}</div>
+            <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 24, lineHeight: 1.6 }}>{L.ob3Sub}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 32 }}>
+              {DIETARY_OPTIONS.map(opt => <button key={opt} onClick={() => setDietary(p => p.includes(opt) ? p.filter(x => x !== opt) : [...p, opt])} style={{ padding: "10px 16px", borderRadius: 24, border: `1.5px solid ${dietary.includes(opt) ? C.btn : C.border}`, background: dietary.includes(opt) ? C.pink : "#fff", color: dietary.includes(opt) ? C.text : C.textMuted, fontSize: 13, cursor: "pointer" }}>{opt}</button>)}
+            </div>
+            <Btn onClick={() => { try { localStorage.setItem('betty_dietary', JSON.stringify(dietary)); localStorage.setItem('betty_lang', language); } catch {} setMsg(L.welcome(displayName)); setScreen("main"); }} style={{ padding: "14px", fontSize: 15 }}>
+              {dietary.length ? L.letsGo : L.skip}
+            </Btn>
+          </div>}
+
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 24 }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ width: i === onboardStep ? 20 : 8, height: 8, borderRadius: 4, background: i === onboardStep ? C.btn : C.border, transition: "width 0.3s" }} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── MAIN APP ───
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", justifyContent: "center" }}>
+      <div style={{ width: "100%", maxWidth: "390px", minHeight: "100vh", background: C.bg, position: "relative" }}>
+
+        {/* Profile Panel */}
+        {showSettings && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }} onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", maxHeight: "85vh", overflowY: "auto" }}>
+
+              {/* Profile header */}
+              <div style={{ background: `linear-gradient(135deg, ${C.header}, #C8EEE0)`, borderRadius: "24px 24px 0 0", padding: "24px 24px 20px", position: "relative" }}>
+                <button onClick={() => setShowSettings(false)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.6)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.text, fontSize: 16 }}>×</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <BettyFace size={60} mood="warm" />
+                  <div>
+                    <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{displayName || user?.email?.split("@")[0]}</div>
+                    <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>{user?.email}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ padding: "20px 24px 32px" }}>
+
+                {/* Language */}
+                <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{language === "bg" ? "Език" : "Language"}</div>
+                <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+                  {[{ code: "en", label: "🇬🇧 English" }, { code: "bg", label: "🇧🇬 Български" }].map(lang => (
+                    <button key={lang.code} onClick={() => { setLanguage(lang.code); try { localStorage.setItem('betty_lang', lang.code); } catch {} }} style={{ flex: 1, padding: "10px", borderRadius: 12, border: `2px solid ${language === lang.code ? C.btn : C.border}`, background: language === lang.code ? C.pink : "#fff", cursor: "pointer", fontSize: 13, fontWeight: "bold", color: C.text }}>
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Dietary preferences */}
+                <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{language === "bg" ? "Хранителни предпочитания" : "Dietary preferences"}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+                  {["🥩 Meat lover", "🌱 Vegetarian", "🌿 Vegan", "🐟 Pescatarian", "🌾 Gluten-free", "🥛 Dairy-free"].map(opt => (
+                    <button key={opt} onClick={() => { const newDietary = dietary.includes(opt) ? dietary.filter(x => x !== opt) : [...dietary, opt]; setDietary(newDietary); try { localStorage.setItem('betty_dietary', JSON.stringify(newDietary)); } catch {} }} style={{ padding: "8px 12px", borderRadius: 20, border: `1.5px solid ${dietary.includes(opt) ? C.btn : C.border}`, background: dietary.includes(opt) ? C.pink : "#fff", color: dietary.includes(opt) ? C.text : C.textMuted, fontSize: 12, cursor: "pointer" }}>{opt}</button>
+                  ))}
+                </div>
+
+                {/* Account settings */}
+                <div style={{ fontSize: 11, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{language === "bg" ? "Акаунт" : "Account"}</div>
+                <div style={{ background: C.bg, borderRadius: 14, overflow: "hidden", marginBottom: 24 }}>
+                  {[
+                    { icon: "✏️", label: language === "bg" ? "Промени името си" : "Edit display name", action: () => { const name = window.prompt(language === "bg" ? "Ново ime:" : "New display name:", displayName); if (name) { setDisplayName(name); supabase.auth.updateUser({ data: { display_name: name } }); } } },
+                    { icon: "🔑", label: language === "bg" ? "Смени паролата" : "Change password", action: () => { supabase.auth.resetPasswordForEmail(user?.email); alert(language === "bg" ? "Изпратихме линк за смяна на парола на имейла ти!" : "We sent a password reset link to your email!"); } },
+                    { icon: "🔔", label: language === "bg" ? "Известия" : "Notifications", action: () => {} },
+                    { icon: "🔒", label: language === "bg" ? "Поверителност" : "Privacy settings", action: () => {} },
+                    { icon: "📊", label: language === "bg" ? "Моите данни" : "My data", action: () => alert(language === "bg" ? `Имейл: ${user?.email}
+Рецепти: ${recipes.length}
+Член от: ${new Date(user?.created_at).toLocaleDateString()}` : `Email: ${user?.email}
+Recipes: ${recipes.length}
+Member since: ${new Date(user?.created_at).toLocaleDateString()}`) },
+                    { icon: "🌐", label: language === "bg" ? "Версия" : "App version", action: () => alert("betty. v1.0 🌸") },
+                  ].map((item, i, arr) => (
+                    <button key={i} onClick={item.action} style={{ width: "100%", padding: "14px 16px", background: "transparent", border: "none", borderBottom: i < arr.length-1 ? `1px solid ${C.border}` : "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                      <span style={{ fontSize: 18 }}>{item.icon}</span>
+                      <span style={{ fontSize: 14, color: C.text, fontFamily: "Georgia, serif" }}>{item.label}</span>
+                      <span style={{ marginLeft: "auto", color: C.textMuted, fontSize: 16 }}>›</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sign out */}
+                <button onClick={handleSignOut} style={{ width: "100%", padding: "14px", background: "#EE85AA", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: "bold", boxShadow: "0 4px 10px rgba(238,133,170,0.3)" }}>
+                  {language === "bg" ? "🚪 Изход" : "🚪 Sign out"}
+                </button>
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Victory Screen */}
+        {showVictory && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+            {/* Confetti */}
+            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "hidden" }} id="confetti-container" />
+            <div style={{ textAlign: "center", padding: "0 32px", position: "relative", zIndex: 1 }}>
+              <img src={VICTORY_IMG} alt="Betty celebrating" style={{ width: 260, height: 260, objectFit: "contain", marginBottom: 8, filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.3))" }} />
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 8, fontFamily: "Georgia, serif" }}>{language === "bg" ? "Браво!!" : "You did it!!"}</div>
+              <div style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", marginBottom: 8, fontFamily: "Georgia, serif", fontStyle: "italic" }}>
+                {selectedRecipe?.title}
+              </div>
+              <div style={{ fontSize: 14, color: C.pink, marginBottom: 32, fontFamily: "Georgia, serif", fontStyle: "italic" }}>
+                {language === "bg" ? "Вкусно ли беше? 😋" : "How did it turn out? 😋"}
+              </div>
+              <button onClick={() => { setShowVictory(false); setMsg(L.didIt); setBettyMood("excited"); setSelectedRecipe(null); setActiveTab("betty"); }} style={{ padding: "16px 40px", background: C.btn, color: "#fff", border: "none", borderRadius: 16, fontSize: 16, fontWeight: "bold", cursor: "pointer", fontFamily: "Georgia, serif", boxShadow: "0 4px 20px rgba(238,133,170,0.5)" }}>
+                {language === "bg" ? "Благодаря, Бети! 🌸" : "Thanks Betty! 🌸"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Save Form */}
+        {showSaveForm && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.saveFormTitle}</div>
+                <button onClick={() => { setShowSaveForm(false); setSaveTitle(""); setSaveIngredients(""); setSaveSteps(""); setSaveTime(""); setSaveTags(""); setSavePhoto(null); }} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              <Field label={L.fTitle}><input value={saveTitle} onChange={e => setSaveTitle(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTime}><input value={saveTime} onChange={e => setSaveTime(e.target.value)} placeholder="e.g. 30 min" style={iStyle} /></Field>
+              <Field label={L.fTags}><input value={saveTags} onChange={e => setSaveTags(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fPhoto}>
+                <label style={{ display: "block", cursor: "pointer" }}>
+                  <div style={{ width: "100%", height: savePhoto ? "auto" : 80, borderRadius: 12, border: `1.5px dashed ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {savePhoto ? <img src={savePhoto} alt="" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 12 }} /> : <span style={{ color: C.textMuted, fontSize: 13 }}>{L.uploadPhoto}</span>}
+                  </div>
+                  <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, setSavePhoto)} style={{ display: "none" }} />
+                </label>
+              </Field>
+              <Field label={L.fIngredients}><textarea value={saveIngredients} onChange={e => setSaveIngredients(e.target.value)} placeholder={L.ingPh} rows={5} style={taStyle} /></Field>
+              <Field label={L.fSteps}><textarea value={saveSteps} onChange={e => setSaveSteps(e.target.value)} placeholder={L.stepsPh} rows={5} style={taStyle} /></Field>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 16, fontStyle: "italic" }}>{L.pasteHint}</div>
+              <Btn onClick={handleSave} disabled={saving || (!saveIngredients.trim() && !saveSteps.trim() && !saveTitle.trim())} style={{ width: "100%", padding: "14px", fontSize: 15 }}>{L.saveRecipeBtn(saving)}</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Form */}
+        {editingRecipe && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.editTitle}</div>
+                <button onClick={() => setEditingRecipe(null)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              <Field label={L.fTitle}><input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTime}><input value={editTime} onChange={e => setEditTime(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fTags}><input value={editTags} onChange={e => setEditTags(e.target.value)} style={iStyle} /></Field>
+              <Field label={L.fPhoto}>
+                <label style={{ display: "block", cursor: "pointer" }}>
+                  <div style={{ width: "100%", height: editPhoto ? "auto" : 70, borderRadius: 12, border: `1.5px dashed ${C.border}`, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {editPhoto ? <img src={editPhoto} alt="" style={{ width: "100%", maxHeight: 140, objectFit: "cover", borderRadius: 12 }} /> : <span style={{ color: C.textMuted, fontSize: 13 }}>{L.changePhoto}</span>}
+                  </div>
+                  <input type="file" accept="image/*" onChange={e => handlePhotoUpload(e, setEditPhoto)} style={{ display: "none" }} />
+                </label>
+              </Field>
+              <Field label={L.fIngredients}><textarea value={editIngredients} onChange={e => setEditIngredients(e.target.value)} rows={5} style={taStyle} /></Field>
+              <Field label={L.fSteps}><textarea value={editSteps} onChange={e => setEditSteps(e.target.value)} rows={5} style={taStyle} /></Field>
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button onClick={() => { if (window.confirm(L.deleteConfirm)) handleDelete(editingRecipe.id); }} style={{ flex: 1, padding: "13px", background: "#fff", border: "1.5px solid #ffcdd2", borderRadius: 14, fontSize: 13, color: "#e57373", cursor: "pointer" }}>{L.deleteBtn}</button>
+                <Btn onClick={handleEditSave} style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14 }}>{L.saveChanges}</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview */}
+        {previewRecipe && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "85vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{previewRecipe.loading ? L.previewLoading : `${previewRecipe.img || "🍽️"} ${previewRecipe.title}`}</div>
+                <button onClick={() => setPreviewRecipe(null)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>
+              </div>
+              {previewRecipe.loading ? <div style={{ textAlign: "center", padding: "40px 0", color: C.textMuted, fontStyle: "italic" }}><div style={{ fontSize: 40, marginBottom: 12 }}>👩‍🍳</div>{L.previewLoadingSub}</div> : (
+                <div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, background: C.blue, padding: "3px 12px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>⏱ {previewRecipe.time}</span>
+                    {previewRecipe.calories && <span style={{ fontSize: 12, background: C.yellow, padding: "3px 12px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>🔥 {previewRecipe.calories} {L.perServing}</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: C.btn, fontStyle: "italic", marginBottom: 16 }}>{previewRecipe.betty}</div>
+                  <div style={{ fontSize: 12, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>{L.fIngredients}</div>
+                  {previewRecipe.ingredients?.map((ing, i) => <div key={i} style={{ fontSize: 14, color: C.text, padding: "6px 0", borderBottom: `1px solid ${C.border}` }}>• {ing}</div>)}
+                  <div style={{ fontSize: 12, fontWeight: "bold", color: C.btn, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 16, marginBottom: 8 }}>{L.fSteps}</div>
+                  {previewRecipe.steps?.map((step, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: C.pink, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold", color: "#fff", flexShrink: 0 }}>{i + 1}</div>
+                      <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{step}</div>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                    <button onClick={() => setPreviewRecipe(null)} style={{ flex: 1, padding: "13px", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 14, fontSize: 13, color: C.textMuted, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.notForMe}</button>
+                    <Btn onClick={() => { setRecipes(prev => [previewRecipe, ...prev]); saveRecipeToDB(previewRecipe); setMsg(L.saved(previewRecipe.title)); setPreviewRecipe(null); setSelectedRecipe(previewRecipe); setCookStep(0); setActiveTab("cook"); }} style={{ flex: 2, padding: "13px", fontSize: 14, borderRadius: 14 }}>{L.saveAndCook}</Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Shopping */}
+        {showShopping && (
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 390, height: "100vh", background: "rgba(45,74,66,0.5)", zIndex: 100, display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, maxHeight: "70vh", overflowY: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontWeight: "bold", fontSize: 18, color: C.text }}>{L.shoppingTitle}</div>
+                <button onClick={() => setShowShopping(false)} style={{ background: C.bg, border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: C.textMuted }}>{L.done}</button>
+              </div>
+              {shoppingList.length === 0 && <div style={{ color: C.textMuted, fontStyle: "italic", fontSize: 14 }}>{L.shoppingEmpty}</div>}
+              {shoppingList.length > 0 && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <button onClick={() => { const allChecked = shoppingList.every(item => shoppingChecked[item]); const newChecked = {}; if (!allChecked) { shoppingList.forEach(item => { newChecked[item] = true; }); } setShoppingChecked(newChecked); }} style={{ flex: 1, padding: "10px", background: C.bettyBubble, border: `1.5px solid ${C.pink}`, borderRadius: 12, color: C.btn, fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: "bold" }}>
+                    {shoppingList.every(item => shoppingChecked[item]) ? L.deselectAll : L.selectAll}
+                  </button>
+                  <button onClick={() => { setShoppingList([]); setShoppingChecked({}); }} style={{ flex: 1, padding: "10px", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, color: C.textMuted, fontSize: 13, cursor: "pointer", fontFamily: "Georgia, serif" }}>{L.clearList}</button>
+                </div>
+              )}
+              {shoppingList.map((item, i) => (
+                <div key={i} onClick={() => setShoppingChecked(p => ({ ...p, [item]: !p[item] }))} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${shoppingChecked[item] ? C.btn : C.border}`, background: shoppingChecked[item] ? C.pink : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{shoppingChecked[item] ? "✓" : ""}</div>
+                  <div style={{ fontSize: 14, color: C.text, textDecoration: shoppingChecked[item] ? "line-through" : "none", opacity: shoppingChecked[item] ? 0.5 : 1 }}>{item}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div style={{ background: `linear-gradient(135deg, ${C.header} 0%, #C8EEE0 100%)`, padding: "48px 24px 20px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -30, right: -30, width: 130, height: 130, background: C.pink, borderRadius: "50%", opacity: 0.35 }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div onClick={() => setShowSettings(true)} style={{ cursor: "pointer" }}><BettyFace size={54} mood={bettyMood} /></div>
+              <div>
+                <div style={{ fontSize: 30, fontWeight: "bold", color: C.text, letterSpacing: "-1px", lineHeight: 1 }}>betty.</div>
+                <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.15em", textTransform: "uppercase", marginTop: 2 }}>{L.hi(displayName)}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowShopping(true)} style={{ background: "rgba(255,255,255,0.7)", border: "none", borderRadius: 12, padding: "8px 12px", cursor: "pointer", fontSize: 20, position: "relative" }}>
+                🛒{shoppingList.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: C.btn, color: "#fff", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>{shoppingList.length}</span>}
+              </button>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, display: "flex", alignItems: "flex-end", gap: 8 }}>
+            <BettyFace size={30} mood={bettyMood} />
+            <div style={{ background: "#fff", borderRadius: "16px 16px 16px 4px", padding: "10px 16px", fontSize: 13, color: C.text, fontStyle: "italic", boxShadow: "0 4px 12px rgba(0,0,0,0.06)", maxWidth: "80%" }}>{bettyMsg}</div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", background: C.tabBg }}>
+          {TABS.map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ flex: 1, padding: "11px 0", background: activeTab === tab ? C.btn : "transparent", border: "none", cursor: "pointer", fontSize: 10, fontWeight: "bold", color: activeTab === tab ? "#fff" : C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", transition: "all 0.2s", borderRadius: activeTab === tab ? "8px 8px 0 0" : 0 }}>
+              {tab === "betty" ? L.tabBetty : tab === "saved" ? L.tabCookbook : L.tabFridge}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: "20px 20px 100px" }}>
+
+          {/* COOKBOOK */}
+          {activeTab === "saved" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "10px 14px", border: `1.5px solid ${C.border}`, marginBottom: 10 }}>
+                <span style={{ fontSize: 16, color: C.textMuted }}>🔍</span>
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={L.searchPh} style={{ flex: 1, border: "none", outline: "none", fontSize: 13, background: "transparent", color: C.text }} />
+                {searchQuery && <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, fontSize: 16 }}>×</button>}
+              </div>
+              <Btn onClick={() => setShowSaveForm(true)} style={{ width: "100%", padding: "13px", borderRadius: 14, fontSize: 14, marginBottom: 12 }}>{L.saveBtn}</Btn>
+              {allTags.length > 0 && (
+                <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
+                  <button onClick={() => setActiveFilter(null)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${!activeFilter ? C.btn : C.border}`, background: !activeFilter ? C.pink : "#fff", color: !activeFilter ? C.text : C.textMuted, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>All</button>
+                  {allTags.map(tag => <button key={tag} onClick={() => setActiveFilter(activeFilter === tag ? null : tag)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${activeFilter === tag ? C.btn : C.border}`, background: activeFilter === tag ? C.pink : "#fff", color: activeFilter === tag ? C.text : C.textMuted, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>{tag}</button>)}
+                </div>
+              )}
+              <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+                {recipesLoading ? L.cookbookLoading : L.cookbookCount(filteredRecipes.length)}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {filteredRecipes.map((r, idx) => (
+                  <div key={r.id} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 14px rgba(180,220,200,0.18)", border: `1.5px solid ${C.border}`, display: "flex", flexDirection: "column" }}>
+                    <div onClick={() => { setSelectedRecipe(r); setCookStep(0); setActiveTab("betty"); setMsg(`${L.nowCooking}: ${r.title}! 🍳`); }} style={{ cursor: "pointer" }}>
+                      {r.photo ? <img src={r.photo} alt={r.title} style={{ width: "100%", height: 110, objectFit: "cover" }} /> : <div style={{ width: "100%", height: 110, background: cardAccents[idx % cardAccents.length] }} />}
+                    </div>
+                    <div style={{ padding: "10px 10px 8px", flex: 1, display: "flex", flexDirection: "column" }}>
+                      <div onClick={() => { setSelectedRecipe(r); setCookStep(0); setActiveTab("betty"); }} style={{ cursor: "pointer" }}>
+                        <div style={{ fontWeight: "bold", fontSize: 13, color: C.text, marginBottom: 3, lineHeight: 1.3 }}>{r.title}</div>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, background: C.blue, padding: "1px 8px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>⏱ {r.time}</span>
+                          {r.calories && <span style={{ fontSize: 11, background: C.yellow, padding: "1px 8px", borderRadius: 20, color: C.text, fontWeight: "bold" }}>🔥 {r.calories}</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button onClick={() => addToShopping(r.ingredients || [])} style={{ flex: 1, padding: "6px 4px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.textMuted, cursor: "pointer" }}>🛒</button>
+                        <button onClick={() => { setSelectedRecipe(r); setChatHistory([]); setChatMoods([]); setActiveTab("betty"); }} style={{ flex: 1, padding: "6px 4px", background: C.bettyBubble, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.btn, cursor: "pointer" }}>👩‍🍳</button>
+                        <button onClick={() => openEdit(r)} style={{ flex: 1, padding: "6px 4px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 11, color: C.textMuted, cursor: "pointer" }}>✏️</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {filteredRecipes.length === 0 && !recipesLoading && <div style={{ textAlign: "center", padding: "40px 20px", color: C.textMuted, fontStyle: "italic" }}>{L.noRecipes(searchQuery)}</div>}
+            </div>
+          )}
+
+          {/* FRIDGE */}
+          {activeTab === "tonight" && (
+            <div>
+              <div style={{ borderRadius: 20, overflow: "hidden", marginBottom: 16, boxShadow: "0 4px 16px rgba(180,220,200,0.2)", border: `1.5px solid ${C.border}` }}>
+                <img src={FRIDGE_IMG} alt="Fridge" style={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "center" }} />
+                <div style={{ background: "#fff", padding: 18 }}>
+                <div style={{ fontWeight: "bold", fontSize: 16, color: C.text, marginBottom: 4 }}>{L.fridgeTitle}</div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 12, fontStyle: "italic" }}>{L.fridgeSub}</div>
+                <textarea value={fridgeItems} onChange={(e) => setFridgeItems(e.target.value)} placeholder={L.fridgePh} rows={3} style={taStyle} />
+                <Btn onClick={handleFridge} disabled={fridgeLoading} style={{ marginTop: 10, width: "100%", padding: "13px", fontSize: 14, borderRadius: 12 }}>{L.askBettyBtn(fridgeLoading)}</Btn>
+              </div></div>
+              {fridgeResult && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: "bold", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{L.fridgePicks}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {fridgeResult.recipes?.map((r, i) => (
+                      <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "14px 16px", border: `1.5px solid ${C.border}`, boxShadow: "0 4px 14px rgba(180,220,200,0.18)" }}>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 10 }}>
+                          <div style={{ width: 48, height: 48, background: [C.pink, C.blue, C.green][i % 3], borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{r.emoji}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: "bold", fontSize: 15, color: C.text }}>{r.name}</div>
+                            <div style={{ fontSize: 12, color: C.textMuted, fontStyle: "italic", marginTop: 2 }}>{r.why}</div>
+                            <div style={{ fontSize: 11, background: C.blue, display: "inline-block", padding: "2px 10px", borderRadius: 20, color: C.text, fontWeight: "bold", marginTop: 4 }}>⏱ {r.time}</div>
+                          </div>
+                        </div>
