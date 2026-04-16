@@ -959,7 +959,7 @@ function BettyApp() {
               { activeTab === "tonight" ? (
                 <div style={{position:"relative",width:"100%",height:200,overflow:"hidden"}}>
                   <img src={FRIDGE_HEADER} alt="Fridge" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
-                  <img src={FRIDGE_BETTY} alt="Betty" style={{position:"absolute",right:0,bottom:0,height:190,objectFit:"contain"}}/>
+                  <img src={FRIDGE_BETTY} alt="Betty" style={{position:"absolute",right:0,bottom:0,height:190,objectFit:"contain",mixBlendMode:"multiply"}}/>
                 </div>
               ) : (
                 <img src={headerImg} alt="Header" style={{width:"100%",height:200,objectFit:activeTab==="betty"?"contain":"cover",objectPosition:activeTab==="saved"?"bottom center":"center",background:activeTab==="betty"?"#fce8f0":"transparent"}}/>
