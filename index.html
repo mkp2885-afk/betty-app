@@ -781,11 +781,11 @@ function BettyApp() {
 
         {/* Shopping */}
         {showShopping && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"#fff",zIndex:300,display:"flex",flexDirection:"column"}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"calc(100vh - 72px)",background:"#fff",zIndex:150,display:"flex",flexDirection:"column"}}>
             <div style={{flexShrink:0,width:"100%",height:200,overflow:"hidden",position:"relative"}}>
               <img src="bettyshopping.png" alt="" style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
             </div>
-            <div style={{flexShrink:0,padding:"16px 24px 8px",fontSize:24,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif"}}>{L.shoppingTitle}</div>
+            <div style={{flexShrink:0,padding:"16px 24px 8px",fontSize:20,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif"}}>{L.shoppingTitle}</div>
             <div style={{flex:1,overflowY:"auto",padding:"0 24px 8px"}}>
               
               <div style={{display:"flex",gap:8,marginBottom:16}}>
@@ -996,7 +996,7 @@ function BettyApp() {
           {/* COOKBOOK */}
           {activeTab==="saved" && (
             <div>
-              <div style={{fontSize:28,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.cookbookTitle}</div>
+              <div style={{fontSize:20,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.cookbookTitle}</div>
               <div style={{display:"flex",alignItems:"center",gap:8,background:"#fff",borderRadius:14,padding:"10px 14px",border:`1.5px solid ${C.border}`,marginBottom:10}}>
                 <span style={{fontSize:16,color:C.textMuted}}>🔍</span>
                 <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder={L.searchPh} style={{flex:1,border:"none",outline:"none",fontSize:13,background:"transparent",color:C.text}}/>
@@ -1049,7 +1049,7 @@ function BettyApp() {
           {/* FRIDGE */}
           {activeTab==="tonight" && (
             <div>
-              <div style={{fontSize:28,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.fridgeTitle2}</div>
+              <div style={{fontSize:20,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.fridgeTitle2}</div>
               <div style={{background:"#fff",borderRadius:20,padding:18,border:`1.5px solid ${C.border}`,boxShadow:"0 4px 16px rgba(180,220,200,0.2)",marginBottom:16}}>
                 <div style={{fontWeight:"bold",fontSize:16,color:C.text,marginBottom:4}}>{L.fridgeTitle}</div>
                 <div style={{fontSize:13,color:C.textMuted,marginBottom:12,fontStyle:"italic"}}>{L.fridgeSub}</div>
@@ -1091,7 +1091,7 @@ function BettyApp() {
           {/* ASK BETTY / COOK MODE */}
           {activeTab==="betty" && (
             <div>
-              {!cookMode&&<div style={{fontSize:28,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.bettyTitle}</div>}
+              {!cookMode&&<div style={{fontSize:20,fontWeight:"bold",color:"#2d4a42",fontFamily:"Georgia,serif",marginBottom:16}}>{L.bettyTitle}</div>}
               {cookMode&&selRec?(
                 <div>
                   <div style={{background:"#8f9fe0",borderRadius:18,padding:16,marginBottom:16}}>
