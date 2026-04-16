@@ -782,16 +782,15 @@ function BettyApp() {
           <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"#fff",zIndex:100,display:"flex",flexDirection:"column"}}>
             <div style={{padding:0,flexShrink:0,width:"100%",height:200,overflow:"hidden",position:"relative",display:"flex",alignItems:"flex-end"}}>
               <img src="bettyshopping.png" alt="" style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
-              <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.18) 0%,rgba(0,0,0,0.35) 100%)"}}/>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px 20px",width:"100%",position:"relative",zIndex:1}}>
-                <div style={{fontSize:24,fontWeight:"bold",color:"#fff",textShadow:"0 1px 4px rgba(0,0,0,0.3)"}}>{L.shoppingTitle}</div>
+                <div style={{fontSize:24,fontWeight:"bold",color:"#2d4a42"}}>{L.shoppingTitle}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button onClick={()=>{
                   const items=shopping.map((item,i)=>`${i+1}. ${item}`).join("\n");
                   if(navigator.share){navigator.share({title:"Shopping list from betty.",text:items});}
                   else{const el=document.createElement("textarea");el.value=items;document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);alert(lang==="bg"?"Копирано!":"Copied to clipboard!");}
-                }} style={{background:"rgba(255,255,255,0.7)",border:"none",borderRadius:12,padding:"8px 14px",cursor:"pointer",color:"#2d4a42",fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{lang==="bg"?"Сподели":"Share"}</button>
-                <button onClick={()=>setShowShopping(false)} style={{background:"rgba(255,255,255,0.7)",border:"none",borderRadius:12,padding:"8px 14px",cursor:"pointer",color:C.text,fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.done}</button>
+                }} style={{background:C.green,border:"none",borderRadius:12,padding:"8px 14px",cursor:"pointer",color:"#2d4a42",fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{lang==="bg"?"Сподели":"Share"}</button>
+                <button onClick={()=>setShowShopping(false)} style={{background:C.green,border:"none",borderRadius:12,padding:"8px 14px",cursor:"pointer",color:C.text,fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.done}</button>
               </div>
               </div>
             </div>
