@@ -44,7 +44,7 @@ export default async function handler(req, res) {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-6',
             max_tokens: 2000,
             system: `You are Betty. Extract the recipe from this webpage text and structure it. Keep the SAME LANGUAGE as the recipe content. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner","steps":["step1"],"ingredients":["item with qty"],"calories":"~XXX kcal"}`,
             messages: [{ role: 'user', content: `Extract the recipe from this page:\n\n${text}` }]
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-6',
             max_tokens: 2000,
             system: `You are Betty. The user gave you a recipe URL but we couldn't scrape it. Use your knowledge to create a recipe based on the URL. Keep the SAME LANGUAGE as the recipe. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner","steps":["step1"],"ingredients":["item with qty"],"calories":"~XXX kcal"}`,
             messages: [{ role: 'user', content: `Create a recipe for this URL: ${body.scrape_url}` }]
