@@ -535,7 +535,8 @@ function BettyApp() {
     setChatLoading(false);
   };
 
-  const addToShopping=items=>{setShopping(prev=>[...new Set([...prev,...items])]);setShowShopping(true);};
+  const stripQty=s=>s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim()||s.trim();
+  const addToShopping=items=>{setShopping(prev=>[...new Set([...prev,...items.map(stripQty)])]);setShowShopping(true);};
   const shareRecipe=r=>{
     const text="🍳 "+r.title+"\n⏱ "+r.time+(r.calories?" · 🔥 "+r.calories:"")+"\n\n📋 "+(lang==="bg"?"Продукти":"Ingredients")+":\n"+r.ingredients.map(i=>"• "+i).join("\n")+"\n\n👨‍🍳 "+(lang==="bg"?"Как се приготвя":"How to prepare")+":\n"+r.steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\n🌸 "+(lang==="bg"?"Споделено от betty. app":"Shared from betty. app");
     if(navigator.share)navigator.share({title:r.title,text});
