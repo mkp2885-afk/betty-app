@@ -260,6 +260,10 @@ function BettyApp() {
   const [showShopping, setShowShopping] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showReport, setShowReport] = React.useState(false);
+  const [infoModal, setInfoModal] = React.useState(null);
+  const [showNameEdit, setShowNameEdit] = React.useState(false);
+  const [newDispName, setNewDispName] = React.useState("");
+  const [confirmDelete, setConfirmDelete] = React.useState(null);
   const [shopInput, setShopInput] = React.useState("");
   const [reportTopic, setReportTopic] = React.useState("");
   const [reportDesc, setReportDesc] = React.useState("");
@@ -768,12 +772,12 @@ function BettyApp() {
                 <div style={{fontSize:11,fontWeight:"bold",color:C.btn,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>{L.account}</div>
                 <div style={{background:C.bg,borderRadius:14,overflow:"hidden",marginBottom:24}}>
                   {[
-                    {icon:"✏️",label:lang==="bg"?"Промени името":"Edit display name",action:()=>{const n=window.prompt(lang==="bg"?"Ново ime:":"New display name:",dispName);if(n){setDispName(n);supabase.auth.updateUser({data:{display_name:n}});}}},
-                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>{supabase.auth.resetPasswordForEmail(user?.email);alert(lang==="bg"?"Изпратихме линк!":"Reset link sent!");}},
-                    {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy settings",action:()=>{}},
-                    {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>alert(lang==="bg"?`Имейл: ${user?.email}\nРецепти: ${recipes.length}`:`Email: ${user?.email}\nRecipes: ${recipes.length}`)},
+                    {icon:"✏️",label:lang==="bg"?"Промени името":"Edit display name",action:()=>{setNewDispName(dispName);setShowNameEdit(true);}},
+                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>{supabase.auth.resetPasswordForEmail(user?.email);setInfoModal({title:lang==="bg"?"Провери имейла си":"Check your email",body:lang==="bg"?"Изпратихме ти линк за смяна на паролата.":"We sent you a password reset link."});}},
+                    {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy settings",action:()=>setInfoModal({title:lang==="bg"?"Поверителност":"Privacy",body:lang==="bg"?"Твоите данни се съхраняват сигурно в Supabase. Не споделяме данни с трети страни.":"Your data is stored securely in Supabase. We never share your data with third parties."}),},
+                    {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>setInfoModal({title:lang==="bg"?"Моите данни":"My data",body:<div style={{lineHeight:2}}><div>📧 {user?.email}</div><div>🍳 {lang==="bg"?`${recipes.length} рецепти`:`${recipes.length} recipes`}</div><div>🌐 {lang==="bg"?"Български":"English"}</div></div>})},
                     {icon:"💳",label:L.managePlan,action:()=>{setShowSettings(false);setShowPlan(true);}},
-                    {icon:"🌐",label:lang==="bg"?"Версия":"App version",action:()=>alert("betty. v1.0 🌸")},
+                    {icon:"🌐",label:lang==="bg"?"Версия":"App version",action:()=>setInfoModal({title:"betty. 🌸",body:"Version 1.0\n\nMade with love for home cooks everywhere."})},
                     {icon:"🚨",label:lang==="bg"?"Докладвай проблем":"Report a problem",action:()=>{
                       setShowSettings(false);
                       setTimeout(()=>setShowReport(true),100);
@@ -958,7 +962,7 @@ function BettyApp() {
               <div style={{position:"sticky",bottom:0,background:"#fff",paddingTop:12,paddingBottom:8,display:"flex",flexDirection:"column",gap:8}}>
                 <button onClick={()=>shareRecipe(editRec)} style={{width:"100%",padding:"12px",background:C.green,border:"none",borderRadius:14,fontSize:13,color:C.text,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.shareRecipe}</button>
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{if(window.confirm(L.deleteConfirm))handleDelete(editRec.id);}} style={{flex:1,padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,fontSize:13,color:"#fff",cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.deleteBtn}</button>
+                  <button onClick={()=>setConfirmDelete(editRec.id)} style={{flex:1,padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,fontSize:13,color:"#fff",cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.deleteBtn}</button>
                   <Btn onClick={handleEditSave} style={{flex:1,padding:"13px",fontSize:14,borderRadius:14}}>{L.saveChanges}</Btn>
                 </div>
               </div>
@@ -1205,6 +1209,48 @@ function BettyApp() {
           )}
 
         </div>
+
+        {/* INFO MODAL */}
+        {infoModal&&(
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setInfoModal(null)}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{infoModal.title}</div>
+                <button onClick={()=>setInfoModal(null)} style={{background:C.bg,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
+              </div>
+              <div style={{fontSize:14,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line"}}>{infoModal.body}</div>
+              <button onClick={()=>setInfoModal(null)} style={{marginTop:20,width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Затвори":"Close"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* NAME EDIT MODAL */}
+        {showNameEdit&&(
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowNameEdit(false)}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{lang==="bg"?"Промени името":"Edit display name"}</div>
+                <button onClick={()=>setShowNameEdit(false)} style={{background:C.bg,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
+              </div>
+              <input value={newDispName} onChange={e=>setNewDispName(e.target.value)} style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1.5px solid ${C.border}`,fontSize:14,background:"#F0F7F4",outline:"none",color:C.text,fontFamily:"Georgia,serif",boxSizing:"border-box",marginBottom:16}}/>
+              <button onClick={()=>{if(newDispName.trim()){setDispName(newDispName.trim());supabase.auth.updateUser({data:{display_name:newDispName.trim()}});}setShowNameEdit(false);}} style={{width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Запази":"Save"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* DELETE CONFIRM MODAL */}
+        {confirmDelete&&(
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDelete(null)}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontWeight:"bold",fontSize:18,color:C.text,marginBottom:10}}>{lang==="bg"?"Изтрий рецептата":"Delete recipe"}</div>
+              <div style={{fontSize:14,color:C.textMuted,marginBottom:24}}>{lang==="bg"?"Сигурен ли си? Това не може да се върне.":"Are you sure? This cannot be undone."}</div>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setConfirmDelete(null)} style={{flex:1,padding:"13px",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textMuted,fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Отказ":"Cancel"}</button>
+                <button onClick={()=>{handleDelete(confirmDelete);setConfirmDelete(null);setEditRec(null);}} style={{flex:1,padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:14,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Изтрий":"Delete"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* BOTTOM NAV */}
         <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,background:"#fff",borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-around",padding:"12px 8px 12px",zIndex:200,boxShadow:"0 -2px 20px rgba(45,74,66,0.1)"}}>
