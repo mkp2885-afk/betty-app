@@ -269,6 +269,7 @@ function BettyApp() {
   const [victoryTitle, setVictoryTitle] = React.useState("");
   const [cookHistory, setCookHistory] = React.useState(()=>{try{return JSON.parse(localStorage.getItem('betty_history')||'[]')}catch{return[]}});
   const chatEndRef = React.useRef(null);
+  const chatInputRef = React.useRef(null);
   const L = T[lang]||T.en;
 
   React.useEffect(()=>{
@@ -530,7 +531,7 @@ function BettyApp() {
 
   const handleChat=async()=>{
     if(!chatMsg.trim()||chatLoading)return;
-    const userMsg=chatMsg;setChatMsg("");
+    const userMsg=chatMsg;setChatMsg("");if(chatInputRef.current){chatInputRef.current.style.height="auto";}
     const newH=[...chatHistory,{role:"user",content:userMsg}];
     setChatHistory(newH);setChatLoading(true);
     try{
@@ -1186,7 +1187,7 @@ function BettyApp() {
                   </div>
                   </>
                   <div style={{display:"flex",gap:8,background:"#fff",borderRadius:18,padding:"14px 16px",border:`1.5px solid ${C.border}`,boxShadow:"0 4px 14px rgba(180,220,200,0.2)"}}>
-                    <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleChat()} placeholder="" style={{flex:1,border:"none",outline:"none",fontSize:14,background:"transparent",color:C.text,minHeight:24}}/>
+                    <textarea ref={chatInputRef} value={chatMsg} rows={1} onChange={e=>{setChatMsg(e.target.value);e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();handleChat();}}} placeholder="" style={{flex:1,border:"none",outline:"none",fontSize:14,background:"transparent",color:C.text,resize:"none",overflow:"hidden",lineHeight:"1.4",fontFamily:"Georgia,serif",padding:0,minHeight:22,maxHeight:120}}/>
                     <Btn onClick={handleChat} disabled={chatLoading} style={{padding:"8px 14px",fontSize:16,borderRadius:12}}>↑</Btn>
                   </div>
                 </div>
