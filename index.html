@@ -951,8 +951,8 @@ function BettyApp() {
               <div style={{position:"sticky",bottom:0,background:"#fff",paddingTop:12,paddingBottom:8,display:"flex",flexDirection:"column",gap:8}}>
                 <button onClick={()=>shareRecipe(editRec)} style={{width:"100%",padding:"12px",background:C.green,border:"none",borderRadius:14,fontSize:13,color:C.text,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.shareRecipe}</button>
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{if(window.confirm(L.deleteConfirm))handleDelete(editRec.id);}} style={{flex:1,padding:"13px",background:"#fff",border:"1.5px solid #fcc9c8",borderRadius:14,fontSize:13,color:"#fa9f9d",cursor:"pointer",fontFamily:"Georgia,serif"}}>{L.deleteBtn}</button>
-                  <Btn onClick={handleEditSave} style={{flex:2,padding:"13px",fontSize:14,borderRadius:14}}>{L.saveChanges}</Btn>
+                  <button onClick={()=>{if(window.confirm(L.deleteConfirm))handleDelete(editRec.id);}} style={{flex:1,padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,fontSize:13,color:"#fff",cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.deleteBtn}</button>
+                  <Btn onClick={handleEditSave} style={{flex:1,padding:"13px",fontSize:14,borderRadius:14}}>{L.saveChanges}</Btn>
                 </div>
               </div>
             </div>
