@@ -542,7 +542,14 @@ function BettyApp() {
     setChatLoading(false);
   };
 
-  const stripQty=s=>{let r=s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim();r=r.replace(/^(г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|l)\.?\s+/i,'').trim();r=r.replace(/\s*\([^)]*\)/g,'').replace(/[.\s]+$/,'').trim();return r||s.trim();};
+  const stripQty=s=>{let r=s
+    .replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'')
+    .replace(/^(г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|l)\.?\s+/i,'')
+    .replace(/\s*\([^)]*\)/g,'')
+    .replace(/\s+\d[\d\s\/]*\s*(грама?|килограма?|милилитра?|литра?|броя?|брой|парчета?|г|кг|мл|л|g|kg|ml|l|oz|cups?|tbsp?|tsp?|pcs?|pieces?)\.?\s*$/i,'')
+    .replace(/^[.\-\s]+/,'')
+    .replace(/[.\s,]+$/,'')
+    .trim();return r||s.trim();};
   const addToShopping=items=>{setShopping(prev=>[...new Set([...prev,...items.map(stripQty)])]);setShowShopping(true);};
   const shareRecipe=r=>{
     const text="🍳 "+r.title+"\n⏱ "+r.time+(r.calories?" · 🔥 "+r.calories:"")+"\n\n📋 "+(lang==="bg"?"Продукти":"Ingredients")+":\n"+r.ingredients.map(i=>"• "+i).join("\n")+"\n\n👨‍🍳 "+(lang==="bg"?"Как се приготвя":"How to prepare")+":\n"+r.steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\n🌸 "+(lang==="bg"?"Споделено от betty. app":"Shared from betty. app");
@@ -810,7 +817,7 @@ function BettyApp() {
                   {starred.filter(s=>shopping.includes(s)).map((item,i)=>(
                     <div key={"s"+i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
                       <div onClick={()=>setChecked(p=>({...p,[item]:!p[item]}))} style={{width:22,height:22,borderRadius:6,border:`2px solid ${checked[item]?C.btn:C.border}`,background:checked[item]?C.pink:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0,cursor:"pointer"}}>{checked[item]?"✓":""}</div>
-                      <div style={{fontSize:14,color:"#2d4a42",flex:1}}>★ {item}</div>
+                      <div style={{fontSize:14,color:"#2d4a42",flex:1}}>★ {stripQty(item)}</div>
                       <button onClick={()=>setShopping(prev=>prev.filter(x=>x!==item))} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.textMuted}}>×</button>
                     </div>
                   ))}
@@ -830,14 +837,14 @@ function BettyApp() {
               {[...shopping].sort((a,b)=>(starred.includes(b)?1:0)-(starred.includes(a)?1:0)).map((item,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
                   <div onClick={()=>setChecked(p=>({...p,[item]:!p[item]}))} style={{width:22,height:22,borderRadius:6,border:`2px solid ${checked[item]?C.btn:C.border}`,background:checked[item]?C.pink:"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0,cursor:"pointer"}}>{checked[item]?"✓":""}</div>
-                  <div onClick={()=>setChecked(p=>({...p,[item]:!p[item]}))} style={{fontSize:14,color:C.text,flex:1,cursor:"pointer"}}>{item}</div>
+                  <div onClick={()=>setChecked(p=>({...p,[item]:!p[item]}))} style={{fontSize:14,color:C.text,flex:1,cursor:"pointer"}}>{stripQty(item)}</div>
                   <button onClick={()=>setStarred(p=>p.includes(item)?p.filter(x=>x!==item):[...p,item])} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:starred.includes(item)?"#f9c74f":C.border,padding:"0 4px",lineHeight:1,flexShrink:0}}>{starred.includes(item)?"★":"☆"}</button>
                 </div>
               ))}
             </div>
             <div style={{flexShrink:0,display:"flex",gap:8,padding:"12px 24px",borderTop:`1px solid ${C.border}`,background:"#fff"}}>
               <button onClick={()=>{
-                const items=shopping.map((item,i)=>`${i+1}. ${item}`).join("\n");
+                const items=shopping.map((item,i)=>`${i+1}. ${stripQty(item)}`).join("\n");
                 if(navigator.share){navigator.share({title:"Shopping list from betty.",text:items}).catch(e=>{if(e?.name!=="AbortError")console.error(e);});}
                 else{const el=document.createElement("textarea");el.value=items;document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);alert(lang==="bg"?"Копирано!":"Copied to clipboard!");}
               }} style={{flex:1,background:C.green,border:"none",borderRadius:12,padding:"12px",cursor:"pointer",color:"#2d4a42",fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{lang==="bg"?"Сподели":"Share"}</button>
