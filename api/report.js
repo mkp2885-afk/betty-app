@@ -30,35 +30,41 @@ export default async function handler(req, res) {
     }).catch(e => console.error('Supabase insert error:', e));
 
     // Send email via Resend
-    if (process.env.RESEND_API_KEY) {
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: 'betty app <onboarding@resend.dev>',
-          to: 'mkp2885@gmail.com',
-          subject: `betty report: ${topic}`,
-          html: `
-            <h2>New report from betty app</h2>
-            <p><strong>Topic:</strong> ${topic}</p>
-            <p><strong>Description:</strong></p>
-            <p>${description.replace(/\n/g, '<br>')}</p>
-            <hr>
-            <p><strong>From:</strong> ${name || 'anonymous'} ${email ? `(${email})` : ''}</p>
-          `,
-        }),
-      });
-
-      if (!emailRes.ok) {
-        const err = await emailRes.json().catch(() => ({}));
-        console.error('Resend error:', err);
-      }
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!resendKey) {
+      console.error('RESEND_API_KEY not set');
+      return res.status(200).json({ ok: true, email: 'skipped – no API key' });
     }
 
-    return res.status(200).json({ ok: true });
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendKey}`,
+      },
+      body: JSON.stringify({
+        from: 'betty app <onboarding@resend.dev>',
+        to: ['mkp2885@gmail.com'],
+        subject: `betty report: ${topic}`,
+        html: `
+          <h2>New report from betty app</h2>
+          <p><strong>Topic:</strong> ${topic}</p>
+          <p><strong>Description:</strong></p>
+          <p>${description.replace(/\n/g, '<br>')}</p>
+          <hr>
+          <p><strong>From:</strong> ${name || 'anonymous'} ${email ? `(${email})` : ''}</p>
+        `,
+      }),
+    });
+
+    const emailData = await emailRes.json();
+
+    if (!emailRes.ok) {
+      console.error('Resend error:', JSON.stringify(emailData));
+      return res.status(200).json({ ok: true, emailError: emailData });
+    }
+
+    return res.status(200).json({ ok: true, emailId: emailData.id });
   } catch (error) {
     console.error('Report API error:', error);
     return res.status(500).json({ error: error.message });

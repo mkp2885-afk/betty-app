@@ -542,7 +542,7 @@ function BettyApp() {
     setChatLoading(false);
   };
 
-  const stripQty=s=>{let r=s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim();r=r.replace(/^(г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|l)\.?\s+/i,'').trim();return r||s.trim();};
+  const stripQty=s=>{let r=s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim();r=r.replace(/^(г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|l)\.?\s+/i,'').trim();r=r.replace(/\s*\([^)]*\)/g,'').replace(/[.\s]+$/,'').trim();return r||s.trim();};
   const addToShopping=items=>{setShopping(prev=>[...new Set([...prev,...items.map(stripQty)])]);setShowShopping(true);};
   const shareRecipe=r=>{
     const text="🍳 "+r.title+"\n⏱ "+r.time+(r.calories?" · 🔥 "+r.calories:"")+"\n\n📋 "+(lang==="bg"?"Продукти":"Ingredients")+":\n"+r.ingredients.map(i=>"• "+i).join("\n")+"\n\n👨‍🍳 "+(lang==="bg"?"Как се приготвя":"How to prepare")+":\n"+r.steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\n🌸 "+(lang==="bg"?"Споделено от betty. app":"Shared from betty. app");
@@ -711,9 +711,9 @@ function BettyApp() {
                 </div>
               ) : (
                 <div>
-                  <div style={{fontSize:11,fontWeight:"bold",color:"#EE85AA",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{lang==="bg"?"Тема":"Topic"}</div>
+                  <div style={{fontSize:11,fontWeight:"bold",color:"#fa9f9d",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{lang==="bg"?"Тема":"Topic"}</div>
                   <input value={reportTopic} onChange={e=>setReportTopic(e.target.value)} placeholder={lang==="bg"?"напр. Бети не отговаря":"e.g. Betty doesn't respond"} style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #D0E8E0",fontSize:13,background:"#F0F7F4",outline:"none",color:"#2d4a42",marginBottom:14,boxSizing:"border-box",fontFamily:"Georgia,serif"}}/>
-                  <div style={{fontSize:11,fontWeight:"bold",color:"#EE85AA",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{lang==="bg"?"Описание":"Description"}</div>
+                  <div style={{fontSize:11,fontWeight:"bold",color:"#fa9f9d",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{lang==="bg"?"Описание":"Description"}</div>
                   <textarea value={reportDesc} onChange={e=>setReportDesc(e.target.value)} placeholder={lang==="bg"?"Опиши проблема...":"Describe the problem..."} rows={5} style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #D0E8E0",fontSize:13,background:"#F0F7F4",outline:"none",color:"#2d4a42",resize:"none",boxSizing:"border-box",lineHeight:1.6,fontFamily:"Georgia,serif",marginBottom:16}}/>
                   <button onClick={async()=>{
                     if(!reportTopic.trim()||!reportDesc.trim()) return;
@@ -723,7 +723,7 @@ function BettyApp() {
                     setReportSent(true);
                     setReportTopic("");
                     setReportDesc("");
-                  }} disabled={!reportTopic.trim()||!reportDesc.trim()} style={{width:"100%",padding:"14px",background:(!reportTopic.trim()||!reportDesc.trim())?"#ddd":"#EE85AA",color:"#fff",border:"none",borderRadius:14,cursor:(!reportTopic.trim()||!reportDesc.trim())?"default":"pointer",fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:15,boxShadow:"0 4px 10px rgba(238,133,170,0.3)"}}>
+                  }} disabled={!reportTopic.trim()||!reportDesc.trim()} style={{width:"100%",padding:"14px",background:(!reportTopic.trim()||!reportDesc.trim())?"#ddd":"#fa9f9d",color:"#fff",border:"none",borderRadius:14,cursor:(!reportTopic.trim()||!reportDesc.trim())?"default":"pointer",fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:15,boxShadow:"0 4px 10px rgba(250,159,157,0.3)"}}>
                     {lang==="bg"?"Изпрати ➜":"Send report ➜"}
                   </button>
                 </div>
