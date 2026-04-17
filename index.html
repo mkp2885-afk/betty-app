@@ -474,6 +474,11 @@ function BettyApp() {
   const togglePin=async r=>{const u={...r,pinned:!r.pinned};setRecipes(prev=>prev.map(x=>x.id===u.id?u:x));await patchRecipeToDB(r.id,{pinned:u.pinned});};
   const toggleFav=async r=>{const u={...r,favorited:!r.favorited};setRecipes(prev=>prev.map(x=>x.id===u.id?u:x));await patchRecipeToDB(r.id,{favorited:u.favorited});};
 
+  const sendPasswordReset=async()=>{
+    await supabase.auth.resetPasswordForEmail(user?.email);
+    setInfoModal({title:lang==="bg"?"Провери имейла си":"Check your email",body:lang==="bg"?"Изпратихме ти линк за нова парола. Провери входящата си поща.":"We sent a reset link to your email. Please check your inbox."});
+  };
+
   const fetchFullRecipe=async(r,saveAfter=false)=>{
     setPreviewRec({name:r.name,emoji:r.emoji,loading:true});
     try{
@@ -773,7 +778,7 @@ function BettyApp() {
                 <div style={{background:C.bg,borderRadius:14,overflow:"hidden",marginBottom:24}}>
                   {[
                     {icon:"✏️",label:lang==="bg"?"Промени името":"Edit display name",action:()=>{setNewDispName(dispName);setShowNameEdit(true);}},
-                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>setInfoModal({title:lang==="bg"?"Смени паролата":"Change password",body:lang==="bg"?"Кликни бутона по-долу, за да получиш линк за смяна на паролата на имейла си.":"Please click the button below to reset your password.",btnLabel:lang==="bg"?"Изпрати линк":"Send reset link",btnAction:async()=>{await supabase.auth.resetPasswordForEmail(user?.email);setInfoModal({title:lang==="bg"?"Провери имейла си":"Check your email",body:lang==="bg"?"Изпратихме ти линк за нова парола. Провери входящата си поща.":"We sent a reset link to your email. Please check your inbox."});}}})},
+                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>setInfoModal({title:lang==="bg"?"Смени паролата":"Change password",body:lang==="bg"?"Кликни бутона по-долу, за да получиш линк за смяна на паролата.":"Please click the button below to reset your password.",btnLabel:lang==="bg"?"Изпрати линк":"Send reset link",btnAction:sendPasswordReset})},
                     {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy settings",action:()=>setInfoModal({title:lang==="bg"?"Поверителност":"Privacy",body:lang==="bg"?"Твоите данни се съхраняват сигурно в Supabase. Не споделяме данни с трети страни.":"Your data is stored securely in Supabase. We never share your data with third parties."}),},
                     {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>setInfoModal({title:lang==="bg"?"Моите данни":"My data",body:<div style={{lineHeight:2}}><div>📧 {user?.email}</div><div>🍳 {lang==="bg"?`${recipes.length} рецепти`:`${recipes.length} recipes`}</div><div>🌐 {lang==="bg"?"Български":"English"}</div></div>})},
                     {icon:"💳",label:L.managePlan,action:()=>{setShowSettings(false);setShowPlan(true);}},
