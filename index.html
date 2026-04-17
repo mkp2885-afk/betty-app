@@ -85,6 +85,7 @@ const T = {
     signUp:"Create account", signIn:"Sign in", next:"Next", skip:"Skip for now", letsGo:"Let's cook!",
     tabRecipes:"Recipes", tabShop:"Shop", tabFridge:"Fridge", tabBetty:"Ask Betty",
     cookbookTitle:"My Cookbook", fridgeTitle2:"What's in the fridge?", bettyTitle:"Ask Betty",
+    dietaryLabels:{"🥩 Meat lover":"🥩 Meat lover","🌱 Vegetarian":"🌱 Vegetarian","🌿 Vegan":"🌿 Vegan","🐟 Pescatarian":"🐟 Pescatarian","🌾 Gluten-free":"🌾 Gluten-free","🥛 Dairy-free":"🥛 Dairy-free"},
     saveBtn:"Save a recipe", insertLink:"Insert link",
     searchPh:"Search recipes...",
     cookbookCount:n=>`Your cookbook (${n})`, cookbookLoading:"Loading your cookbook... 🌸",
@@ -141,6 +142,7 @@ const T = {
     signUp:"Създай акаунт", signIn:"Влез", next:"Напред", skip:"Пропусни", letsGo:"Да готвим!",
     tabRecipes:"Рецепти", tabShop:"Пазар", tabFridge:"Хладилник", tabBetty:"Питай Бети",
     cookbookTitle:"Моята готварска книга", fridgeTitle2:"Какво има в хладилника?", bettyTitle:"Питай Бети",
+    dietaryLabels:{"🥩 Meat lover":"🥩 Месоядец","🌱 Vegetarian":"🌱 Вегетарианец","🌿 Vegan":"🌿 Веган","🐟 Pescatarian":"🐟 Пескатарианец","🌾 Gluten-free":"🌾 Без глутен","🥛 Dairy-free":"🥛 Без млечни"},
     saveBtn:"Запази рецепта", insertLink:"Постави линк",
     searchPh:"Търси рецепти...",
     cookbookCount:n=>`Твоите рецепти (${n})`, cookbookLoading:"Зареждам рецептите... 🌸",
@@ -539,11 +541,11 @@ function BettyApp() {
     setChatLoading(false);
   };
 
-  const stripQty=s=>s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim()||s.trim();
+  const stripQty=s=>{let r=s.replace(/^[\d\s½¼¾⅓⅔⅛⅜⅝⅞\/\-\.]+\s*(cups?|tbsp?|tsp?|tablespoons?|teaspoons?|г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|cl|dl|l|oz|lbs?|pounds?|grams?|kilograms?|milliliters?|liters?|pieces?|pcs?|cloves?|slices?|bunches?|cans?|handfuls?|pinch|dashes?|sprigs?|stalks?|heads?|bunch)?\s*/i,'').trim();r=r.replace(/^(г|гр|кг|мл|дл|бр|с\.л\.?|ч\.л\.?|g|kg|ml|l)\.?\s+/i,'').trim();return r||s.trim();};
   const addToShopping=items=>{setShopping(prev=>[...new Set([...prev,...items.map(stripQty)])]);setShowShopping(true);};
   const shareRecipe=r=>{
     const text="🍳 "+r.title+"\n⏱ "+r.time+(r.calories?" · 🔥 "+r.calories:"")+"\n\n📋 "+(lang==="bg"?"Продукти":"Ingredients")+":\n"+r.ingredients.map(i=>"• "+i).join("\n")+"\n\n👨‍🍳 "+(lang==="bg"?"Как се приготвя":"How to prepare")+":\n"+r.steps.map((s,i)=>(i+1)+". "+s).join("\n")+"\n\n🌸 "+(lang==="bg"?"Споделено от betty. app":"Shared from betty. app");
-    if(navigator.share)navigator.share({title:r.title,text});
+    if(navigator.share)navigator.share({title:r.title,text}).catch(e=>{if(e?.name!=="AbortError")console.error(e);});
     else{navigator.clipboard.writeText(text);alert(lang==="bg"?"Рецептата е копирана!":"Recipe copied to clipboard!");}
   };
 
@@ -621,7 +623,7 @@ function BettyApp() {
               <div style={{fontSize:14,color:C.textMuted,marginBottom:24,lineHeight:1.6}}>{L.ob3Sub}</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:32}}>
                 {DIETARY_OPTIONS.map(opt=>(
-                  <button key={opt} onClick={()=>setDietary(p=>p.includes(opt)?p.filter(x=>x!==opt):[...p,opt])} style={{padding:"10px 16px",borderRadius:24,border:`1.5px solid ${dietary.includes(opt)?C.btn:C.border}`,background:dietary.includes(opt)?C.pink:"#fff",color:dietary.includes(opt)?C.text:C.textMuted,fontSize:13,cursor:"pointer"}}>{opt}</button>
+                  <button key={opt} onClick={()=>setDietary(p=>p.includes(opt)?p.filter(x=>x!==opt):[...p,opt])} style={{padding:"10px 16px",borderRadius:24,border:`1.5px solid ${dietary.includes(opt)?C.btn:C.border}`,background:dietary.includes(opt)?C.pink:"#fff",color:dietary.includes(opt)?C.text:C.textMuted,fontSize:13,cursor:"pointer"}}>{L.dietaryLabels?.[opt]||opt}</button>
                 ))}
               </div>
               <Btn onClick={completeOnboarding} style={{padding:"14px",fontSize:15}}>{dietary.length?L.letsGo:L.skip}</Btn>
@@ -730,7 +732,7 @@ function BettyApp() {
         )}
 
         {showSettings && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}} onClick={e=>{if(e.target===e.currentTarget)setShowSettings(false);}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"flex-end"}} onClick={e=>{if(e.target===e.currentTarget)setShowSettings(false);}}>
             <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",maxHeight:"85vh",overflowY:"auto"}}>
               <div style={{background:`linear-gradient(135deg,${C.header},#C8EEE0)`,borderRadius:"24px 24px 0 0",padding:"24px 24px 20px",position:"relative"}}>
                 <button onClick={()=>setShowSettings(false)} style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.6)",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.text,fontSize:16}}>×</button>
@@ -752,7 +754,7 @@ function BettyApp() {
                 <div style={{fontSize:11,fontWeight:"bold",color:C.btn,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>{lang==="bg"?"Хранителни предпочитания":"Dietary preferences"}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:24}}>
                   {DIETARY_OPTIONS.map(opt=>(
-                    <button key={opt} onClick={()=>{const n=dietary.includes(opt)?dietary.filter(x=>x!==opt):[...dietary,opt];setDietary(n);try{localStorage.setItem('betty_dietary',JSON.stringify(n));}catch{}}} style={{padding:"8px 12px",borderRadius:20,border:`1.5px solid ${dietary.includes(opt)?C.btn:C.border}`,background:dietary.includes(opt)?C.pink:"#fff",color:dietary.includes(opt)?C.text:C.textMuted,fontSize:12,cursor:"pointer"}}>{opt}</button>
+                    <button key={opt} onClick={()=>{const n=dietary.includes(opt)?dietary.filter(x=>x!==opt):[...dietary,opt];setDietary(n);try{localStorage.setItem('betty_dietary',JSON.stringify(n));}catch{}}} style={{padding:"8px 12px",borderRadius:20,border:`1.5px solid ${dietary.includes(opt)?C.btn:C.border}`,background:dietary.includes(opt)?C.pink:"#fff",color:dietary.includes(opt)?C.text:C.textMuted,fontSize:12,cursor:"pointer"}}>{L.dietaryLabels?.[opt]||opt}</button>
                   ))}
                 </div>
                 <div style={{fontSize:11,fontWeight:"bold",color:C.btn,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>{L.account}</div>
@@ -835,7 +837,7 @@ function BettyApp() {
             <div style={{flexShrink:0,display:"flex",gap:8,padding:"12px 24px",borderTop:`1px solid ${C.border}`,background:"#fff"}}>
               <button onClick={()=>{
                 const items=shopping.map((item,i)=>`${i+1}. ${item}`).join("\n");
-                if(navigator.share){navigator.share({title:"Shopping list from betty.",text:items});}
+                if(navigator.share){navigator.share({title:"Shopping list from betty.",text:items}).catch(e=>{if(e?.name!=="AbortError")console.error(e);});}
                 else{const el=document.createElement("textarea");el.value=items;document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);alert(lang==="bg"?"Копирано!":"Copied to clipboard!");}
               }} style={{flex:1,background:C.green,border:"none",borderRadius:12,padding:"12px",cursor:"pointer",color:"#2d4a42",fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{lang==="bg"?"Сподели":"Share"}</button>
               <button onClick={()=>setShowShopping(false)} style={{flex:1,background:C.green,border:"none",borderRadius:12,padding:"12px",cursor:"pointer",color:C.text,fontSize:14,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.done}</button>
@@ -845,7 +847,7 @@ function BettyApp() {
 
         {/* Preview */}
         {previewRec && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"flex-end"}}>
             <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",padding:"24px 24px 100px",maxHeight:"85vh",overflowY:"auto"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{previewRec.loading?L.previewLoading:`${previewRec.img||"🍽️"} ${previewRec.title}`}</div>
@@ -881,7 +883,7 @@ function BettyApp() {
 
         {/* Save Form */}
         {showSaveForm && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"flex-end"}}>
             <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",padding:"24px 24px 80px",maxHeight:"90vh",overflowY:"auto"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{L.saveFormTitle}</div>
@@ -908,7 +910,7 @@ function BettyApp() {
 
         {/* Link Form */}
         {showLinkForm && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"flex-end"}}>
             <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",padding:"24px 24px 120px",maxHeight:"90vh",overflowY:"auto"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>🔗 {L.insertLink}</div>
@@ -926,7 +928,7 @@ function BettyApp() {
 
         {/* Edit Form */}
         {editRec && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}}>
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"flex-end"}}>
             <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",padding:"24px 24px 80px",maxHeight:"90vh",overflowY:"auto"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{L.editTitle}</div>
