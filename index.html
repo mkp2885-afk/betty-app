@@ -332,6 +332,7 @@ function BettyApp() {
   const [confirmDelete, setConfirmDelete] = React.useState(null);
   const [agreedToPrivacy, setAgreedToPrivacy] = React.useState(false);
   const [showPrivacyPrompt, setShowPrivacyPrompt] = React.useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = React.useState(false);
   const [shopInput, setShopInput] = React.useState("");
   const [reportTopic, setReportTopic] = React.useState("");
   const [reportDesc, setReportDesc] = React.useState("");
@@ -492,6 +493,18 @@ function BettyApp() {
 
   const handleSignOut=async()=>{
     await supabase.auth.signOut();setUser(null);setRecipes([]);setShowSettings(false);
+    setScreen("onboarding");setObStep(0);setEmail("");setPassword("");setDispName("");
+  };
+
+  const handleDeleteAccount=async()=>{
+    try{
+      const s=await supabase.auth.getSession();
+      const token=s.data.session?.access_token;
+      await fetch("/api/delete-account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,userId:user.id})});
+    }catch(e){console.error(e);}
+    try{localStorage.removeItem('betty_privacy_agreed');}catch{}
+    await supabase.auth.signOut();
+    setUser(null);setRecipes([]);setShowSettings(false);setConfirmDeleteAccount(false);
     setScreen("onboarding");setObStep(0);setEmail("");setPassword("");setDispName("");
   };
 
@@ -873,7 +886,8 @@ function BettyApp() {
                     </button>
                   ))}
                 </div>
-                <button onClick={handleSignOut} style={{width:"100%",padding:"14px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.signOut}</button>
+                <button onClick={handleSignOut} style={{width:"100%",padding:"14px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold",marginBottom:10}}>{L.signOut}</button>
+                <button onClick={()=>setConfirmDeleteAccount(true)} style={{width:"100%",padding:"14px",background:"transparent",border:"1.5px solid #fa9f9d",borderRadius:14,color:"#fa9f9d",fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{lang==="bg"?"Изтрий акаунта":"Delete account"}</button>
               </div>
             </div>
           </div>
@@ -1292,6 +1306,21 @@ function BettyApp() {
           )}
 
         </div>
+
+        {/* DELETE ACCOUNT CONFIRM */}
+        {confirmDeleteAccount&&(
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setConfirmDeleteAccount(false)}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:32,textAlign:"center",marginBottom:12}}>⚠️</div>
+              <div style={{fontWeight:"bold",fontSize:18,color:C.text,marginBottom:10,textAlign:"center"}}>{lang==="bg"?"Изтрий акаунта":"Delete account"}</div>
+              <div style={{fontSize:14,color:C.textMuted,marginBottom:24,lineHeight:1.6,textAlign:"center"}}>{lang==="bg"?"Това ще изтрие всичките ти рецепти и данни завинаги. Действието не може да се върне.":"This will permanently delete all your recipes and data. This action cannot be undone."}</div>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setConfirmDeleteAccount(false)} style={{flex:1,padding:"13px",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textMuted,fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Отказ":"Cancel"}</button>
+                <button onClick={handleDeleteAccount} style={{flex:1,padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:14,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Изтрий":"Delete"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* PRIVACY PROMPT — existing users */}
         {showPrivacyPrompt&&(
