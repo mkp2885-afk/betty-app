@@ -773,7 +773,7 @@ function BettyApp() {
                 <div style={{background:C.bg,borderRadius:14,overflow:"hidden",marginBottom:24}}>
                   {[
                     {icon:"✏️",label:lang==="bg"?"Промени името":"Edit display name",action:()=>{setNewDispName(dispName);setShowNameEdit(true);}},
-                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>{supabase.auth.resetPasswordForEmail(user?.email);setInfoModal({title:lang==="bg"?"Провери имейла си":"Check your email",body:lang==="bg"?"Изпратихме ти линк за смяна на паролата.":"We sent you a password reset link."});}},
+                    {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>setInfoModal({title:lang==="bg"?"Смени паролата":"Change password",body:lang==="bg"?"Кликни бутона по-долу, за да получиш линк за смяна на паролата на имейла си.":"Please click the button below to reset your password.",btnLabel:lang==="bg"?"Изпрати линк":"Send reset link",btnAction:async()=>{await supabase.auth.resetPasswordForEmail(user?.email);setInfoModal({title:lang==="bg"?"Провери имейла си":"Check your email",body:lang==="bg"?"Изпратихме ти линк за нова парола. Провери входящата си поща.":"We sent a reset link to your email. Please check your inbox."});}}})},
                     {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy settings",action:()=>setInfoModal({title:lang==="bg"?"Поверителност":"Privacy",body:lang==="bg"?"Твоите данни се съхраняват сигурно в Supabase. Не споделяме данни с трети страни.":"Your data is stored securely in Supabase. We never share your data with third parties."}),},
                     {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>setInfoModal({title:lang==="bg"?"Моите данни":"My data",body:<div style={{lineHeight:2}}><div>📧 {user?.email}</div><div>🍳 {lang==="bg"?`${recipes.length} рецепти`:`${recipes.length} recipes`}</div><div>🌐 {lang==="bg"?"Български":"English"}</div></div>})},
                     {icon:"💳",label:L.managePlan,action:()=>{setShowSettings(false);setShowPlan(true);}},
@@ -1218,8 +1218,9 @@ function BettyApp() {
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{infoModal.title}</div>
                 <button onClick={()=>setInfoModal(null)} style={{background:C.bg,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
               </div>
-              <div style={{fontSize:14,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line"}}>{infoModal.body}</div>
-              <button onClick={()=>setInfoModal(null)} style={{marginTop:20,width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Затвори":"Close"}</button>
+              <div style={{fontSize:14,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line",marginBottom:20}}>{infoModal.body}</div>
+              {infoModal.btnLabel&&<button onClick={infoModal.btnAction} style={{width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",marginBottom:10}}>{infoModal.btnLabel}</button>}
+              <button onClick={()=>setInfoModal(null)} style={{width:"100%",padding:"13px",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textMuted,fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Затвори":"Close"}</button>
             </div>
           </div>
         )}
