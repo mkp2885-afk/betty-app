@@ -68,6 +68,72 @@ const C = {
 
 const getRandom = arr => arr[Math.floor(Math.random()*arr.length)];
 const DIETARY_OPTIONS = ["🥩 Meat lover","🌱 Vegetarian","🌿 Vegan","🐟 Pescatarian","🌾 Gluten-free","🥛 Dairy-free"];
+const PRIVACY_POLICY = `Privacy Policy for Betty
+Effective Date: 17 April 2026
+
+Betty ("we", "our", or "us") respects your privacy and is committed to protecting it. This Privacy Policy explains how we collect, use, and safeguard your information when you use the Betty mobile application (the "App").
+
+1. Information We Collect
+
+a) Account Information
+When you create an account, we may collect:
+• Email address
+• Login credentials (securely managed)
+
+b) User Content and Preferences
+• Saved recipes
+• Favorites
+• App preferences and interactions
+
+c) Automatically Collected Information
+• Device type and operating system
+• App usage data (features used, interactions)
+• Log data (crashes, diagnostics)
+
+2. How We Use Your Information
+We use your information to:
+• Create and manage your account
+• Save and sync your preferences and favourite recipes
+• Provide and improve app functionality
+• Analyse usage and improve performance
+• Detect and prevent technical issues
+
+3. Payments and Subscriptions
+Betty may offer paid subscriptions. All payments are processed through the in-app purchase systems of Apple and Google. We do not collect or store your payment information. We only receive confirmation of your subscription status.
+
+4. Sharing of Information
+We do not sell your personal data. We may share limited data with:
+• Service providers that help us operate the App (such as hosting and backend providers, including Supabase)
+• Legal authorities, if required by law
+
+5. Data Retention
+We retain your data for as long as your account is active or as needed to provide the App. You may request deletion of your account and data at any time.
+
+6. Your Rights (GDPR)
+If you are located in the European Economic Area, you have the right to:
+• Access your personal data
+• Request correction or deletion
+• Object to or restrict processing
+• Withdraw consent at any time
+To exercise these rights, contact: mkp2885@gmail.com
+
+7. Data Security
+We take reasonable technical and organisational measures to protect your data. However, no system is completely secure.
+
+8. Children's Privacy
+The App is not intended for children under 13 (or applicable minimum age in your country). We do not knowingly collect personal data from children.
+
+9. Third-Party Services
+We use third-party services to operate the App, including backend infrastructure and data storage providers (such as Supabase). These providers process data on our behalf and are obligated to protect your information.
+
+10. Changes to This Policy
+We may update this Privacy Policy from time to time. Updates will be posted within the App or on our website.
+
+11. Contact
+If you have questions or requests regarding this Privacy Policy:
+Email: mkp2885@gmail.com
+
+By using Betty, you agree to this Privacy Policy.`;
 const cardAccents = [C.blue, C.pink, C.green, C.yellow];
 
 const T = {
@@ -264,6 +330,7 @@ function BettyApp() {
   const [showNameEdit, setShowNameEdit] = React.useState(false);
   const [newDispName, setNewDispName] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(null);
+  const [agreedToPrivacy, setAgreedToPrivacy] = React.useState(false);
   const [shopInput, setShopInput] = React.useState("");
   const [reportTopic, setReportTopic] = React.useState("");
   const [reportDesc, setReportDesc] = React.useState("");
@@ -621,9 +688,18 @@ function BettyApp() {
                   <input value={email} onChange={e=>setEmail(e.target.value)} placeholder={L.emailPh} type="email" style={{...iS,marginBottom:10,border:`1.5px solid ${C.header}`}}/>
                   {authMode!=="magic"&&<input value={password} onChange={e=>setPassword(e.target.value)} placeholder={L.passPh} type="password" style={{...iS,marginBottom:10,border:`1.5px solid ${C.header}`}} onKeyDown={e=>e.key==="Enter"&&handleAuth()}/>}
                   {authError&&<div style={{fontSize:12,color:"#e57373",marginBottom:10,padding:"8px 12px",background:"#ffebee",borderRadius:8}}>{authError}</div>}
+                  {authMode==="signup"&&(
+                    <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:12,padding:"10px 12px",background:C.bg,borderRadius:10}}>
+                      <input type="checkbox" id="privacyCheck" checked={agreedToPrivacy} onChange={e=>setAgreedToPrivacy(e.target.checked)} style={{marginTop:2,accentColor:C.btn,width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
+                      <label htmlFor="privacyCheck" style={{fontSize:12,color:C.textMuted,lineHeight:1.5,cursor:"pointer"}}>
+                        {lang==="bg"?"Прочетох и се съгласявам с ":"I have read and agree to the "}
+                        <span onClick={e=>{e.preventDefault();setInfoModal({title:"Privacy Policy",body:PRIVACY_POLICY,scrollable:true});}} style={{color:C.btn,textDecoration:"underline",cursor:"pointer"}}>{lang==="bg"?"Политиката за поверителност":"Privacy Policy"}</span>
+                      </label>
+                    </div>
+                  )}
                   {authMode==="magic"
                     ? <Btn onClick={handleMagicLink} disabled={authLoading||!email} style={{padding:"14px",fontSize:15,marginBottom:12,width:"100%"}}>{authLoading?"...":L.sendMagic}</Btn>
-                    : <Btn onClick={handleAuth} disabled={authLoading||!email||!password} style={{padding:"14px",fontSize:15,marginBottom:12,width:"100%"}}>{authLoading?"...":authMode==="signup"?L.signUp:L.signIn}</Btn>
+                    : <Btn onClick={handleAuth} disabled={authLoading||!email||!password||(authMode==="signup"&&!agreedToPrivacy)} style={{padding:"14px",fontSize:15,marginBottom:12,width:"100%"}}>{authLoading?"...":authMode==="signup"?L.signUp:L.signIn}</Btn>
                   }
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     <button onClick={()=>{setAuthMode(authMode==="signup"?"signin":"signup");setAuthError("");}} style={{background:"none",border:"none",color:C.textMuted,fontSize:13,cursor:"pointer",textDecoration:"underline"}}>{authMode==="signup"?L.ob2Login:L.ob2Signup}</button>
@@ -779,7 +855,7 @@ function BettyApp() {
                   {[
                     {icon:"✏️",label:lang==="bg"?"Промени името":"Edit display name",action:()=>{setNewDispName(dispName);setShowNameEdit(true);}},
                     {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>setInfoModal({title:lang==="bg"?"Смени паролата":"Change password",body:lang==="bg"?"Кликни бутона по-долу, за да получиш линк за смяна на паролата.":"Please click the button below to reset your password.",btnLabel:lang==="bg"?"Изпрати линк":"Send reset link",btnAction:sendPasswordReset})},
-                    {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy settings",action:()=>setInfoModal({title:lang==="bg"?"Поверителност":"Privacy",body:lang==="bg"?"Твоите данни се съхраняват сигурно в Supabase. Не споделяме данни с трети страни.":"Your data is stored securely in Supabase. We never share your data with third parties."}),},
+                    {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy Policy",action:()=>setInfoModal({title:"Privacy Policy",body:PRIVACY_POLICY,scrollable:true})},
                     {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>setInfoModal({title:lang==="bg"?"Моите данни":"My data",body:<div style={{lineHeight:2}}><div>📧 {user?.email}</div><div>🍳 {lang==="bg"?`${recipes.length} рецепти`:`${recipes.length} recipes`}</div><div>🌐 {lang==="bg"?"Български":"English"}</div></div>})},
                     {icon:"💳",label:L.managePlan,action:()=>{setShowSettings(false);setShowPlan(true);}},
                     {icon:"🌐",label:lang==="bg"?"Версия":"App version",action:()=>setInfoModal({title:"betty. 🌸",body:"Version 1.0\n\nMade with love for home cooks everywhere."})},
@@ -1218,14 +1294,14 @@ function BettyApp() {
         {/* INFO MODAL */}
         {infoModal&&(
           <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:210,display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setInfoModal(null)}>
-            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",maxHeight:"80vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexShrink:0}}>
                 <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>{infoModal.title}</div>
                 <button onClick={()=>setInfoModal(null)} style={{background:C.bg,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
               </div>
-              <div style={{fontSize:14,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line",marginBottom:20}}>{infoModal.body}</div>
-              {infoModal.btnLabel&&<button onClick={infoModal.btnAction} style={{width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",marginBottom:10}}>{infoModal.btnLabel}</button>}
-              <button onClick={()=>setInfoModal(null)} style={{width:"100%",padding:"13px",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textMuted,fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif"}}>{lang==="bg"?"Затвори":"Close"}</button>
+              <div style={{fontSize:13,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line",marginBottom:16,overflowY:infoModal.scrollable?"auto":"visible",flex:infoModal.scrollable?"1":"none"}}>{infoModal.body}</div>
+              {infoModal.btnLabel&&<button onClick={infoModal.btnAction} style={{width:"100%",padding:"13px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",marginBottom:10,flexShrink:0}}>{infoModal.btnLabel}</button>}
+              <button onClick={()=>setInfoModal(null)} style={{width:"100%",padding:"13px",background:C.bg,border:`1.5px solid ${C.border}`,borderRadius:14,color:C.textMuted,fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",flexShrink:0}}>{lang==="bg"?"Затвори":"Close"}</button>
             </div>
           </div>
         )}
