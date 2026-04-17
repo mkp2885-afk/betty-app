@@ -331,6 +331,7 @@ function BettyApp() {
   const [newDispName, setNewDispName] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(null);
   const [agreedToPrivacy, setAgreedToPrivacy] = React.useState(false);
+  const [showPrivacyPrompt, setShowPrivacyPrompt] = React.useState(false);
   const [shopInput, setShopInput] = React.useState("");
   const [reportTopic, setReportTopic] = React.useState("");
   const [reportDesc, setReportDesc] = React.useState("");
@@ -353,6 +354,7 @@ function BettyApp() {
         setLang(sl);
         setDietary(JSON.parse(localStorage.getItem('betty_dietary')||'[]'));
         setScreen("main");
+        if(!localStorage.getItem('betty_privacy_agreed'))setShowPrivacyPrompt(true);
       }
       setAuthChecked(true);
     });
@@ -470,7 +472,7 @@ function BettyApp() {
           setUser(data.user);
           const n=data.user.user_metadata?.display_name||data.user.email?.split('@')[0]||"";
           setDispName(n);
-          try{localStorage.setItem('betty_lang',lang);localStorage.setItem('betty_dietary',JSON.stringify(dietary));}catch{}
+          try{localStorage.setItem('betty_lang',lang);localStorage.setItem('betty_dietary',JSON.stringify(dietary));localStorage.setItem('betty_privacy_agreed','1');}catch{}
           setBettyMsg(L.welcome(n));setScreen("main");
         }
       }
@@ -1290,6 +1292,20 @@ function BettyApp() {
           )}
 
         </div>
+
+        {/* PRIVACY PROMPT — existing users */}
+        {showPrivacyPrompt&&(
+          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.7)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+            <div style={{background:"#fff",borderRadius:24,padding:28,width:"100%",maxHeight:"80vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 40px rgba(0,0,0,0.2)"}}>
+              <div style={{fontWeight:"bold",fontSize:18,color:C.text,marginBottom:6}}>🔒 Privacy Policy</div>
+              <div style={{fontSize:12,color:C.textMuted,marginBottom:12}}>Effective Date: 17 April 2026</div>
+              <div style={{fontSize:13,color:C.textMuted,lineHeight:1.7,whiteSpace:"pre-line",flex:1,overflowY:"auto",marginBottom:16}}>{PRIVACY_POLICY}</div>
+              <button onClick={()=>{try{localStorage.setItem('betty_privacy_agreed','1');}catch{}setShowPrivacyPrompt(false);}} style={{width:"100%",padding:"14px",background:"#fa9f9d",border:"none",borderRadius:14,color:"#fff",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                {lang==="bg"?"Прочетох и се съгласявам":"I have read and agree"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* INFO MODAL */}
         {infoModal&&(
