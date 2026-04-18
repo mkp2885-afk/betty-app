@@ -23,20 +23,6 @@
 </head>
 <body>
 <div id="root"></div>
-<div id="error-display" style="display:none;padding:20px;background:#fee;color:#c00;font-family:monospace;font-size:12px;white-space:pre-wrap;position:fixed;top:0;left:0;right:0;z-index:9999;max-height:50vh;overflow:auto;"></div>
-<script>
-window.onerror = function(msg, src, line, col, err) {
-  var d = document.getElementById('error-display');
-  d.style.display = 'block';
-  d.textContent = 'ERROR: ' + msg + '\nLine: ' + line + '\nFile: ' + src + '\n' + (err ? err.stack : '');
-  return false;
-};
-window.addEventListener('unhandledrejection', function(e) {
-  var d = document.getElementById('error-display');
-  d.style.display = 'block';
-  d.textContent = (d.textContent || '') + '\nPROMISE: ' + e.reason;
-});
-</script>
 <script>
 const BETTY_IMG = "betty-spoon.png";
 const BG_IMG = "login-header.png";
