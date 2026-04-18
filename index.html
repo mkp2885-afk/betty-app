@@ -326,7 +326,17 @@ function BettyApp() {
   const [reportTopic, setReportTopic] = React.useState("");
   const [reportDesc, setReportDesc] = React.useState("");
   const [reportSent, setReportSent] = React.useState(false);
-  const [showPlan, setShowPlan] = React.useState(false);
+  const RECIPE_LIMIT = 15;
+  const BETTY_Q_LIMIT = 5;
+  const getTodayQ = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('betty_q_today')||'{}');
+      const today = new Date().toISOString().slice(0,10);
+      if (s.date === today) return s.count||0;
+    } catch {}
+    return 0;
+  };
+  const [bettyQUsed, setBettyQUsed] = React.useState(getTodayQ);
   const [showVictory, setShowVictory] = React.useState(false);
   const [victoryTitle, setVictoryTitle] = React.useState("");
   const [cookHistory, setCookHistory] = React.useState(()=>{try{return JSON.parse(localStorage.getItem('betty_history')||'[]')}catch{return[]}});
@@ -499,6 +509,7 @@ function BettyApp() {
 
   const handleSave=async()=>{
     if(!saveTitle.trim()&&!saveIng.trim()&&!saveSteps.trim())return;
+    if(recipes.length>=RECIPE_LIMIT){setBettyMsg(lang==="bg"?`Достигна лимита от ${RECIPE_LIMIT} рецепти 🍳`:`You've reached the ${RECIPE_LIMIT} recipe limit 🍳`);setShowSaveForm(false);return;}
     setSaving(true);
     const fb={id:Date.now(),title:saveTitle.trim()||"My Recipe",time:saveTime.trim()||"? min",tags:saveTags?saveTags.split(",").map(t=>t.trim()).filter(Boolean):["saved"],img:"🍽️",photo:savePhoto||null,betty:"Saved!",steps:saveSteps.split("\n").map(s=>s.trim()).filter(Boolean),ingredients:saveIng.split("\n").map(i=>i.trim()).filter(Boolean),calories:null,pinned:false,favorited:false};
     try{
@@ -519,6 +530,7 @@ function BettyApp() {
 
   const handleLink=async()=>{
     if(!linkUrl.trim())return;
+    if(recipes.length>=RECIPE_LIMIT){setBettyMsg(lang==="bg"?`Достигна лимита от ${RECIPE_LIMIT} рецепти 🍳`:`You've reached the ${RECIPE_LIMIT} recipe limit 🍳`);setShowLinkForm(false);return;}
     setLinkLoading(true);
     try{
       const data=await callBetty({scrape_url:linkUrl});
@@ -558,7 +570,10 @@ function BettyApp() {
       const p=JSON.parse(clean);
       const fr={id:Date.now(),title:p.title||r.name,time:p.time||r.time,tags:p.tags||["saved"],img:r.emoji,photo:null,betty:p.betty||r.why,steps:p.steps||[],ingredients:p.ingredients||[],calories:p.calories||null,pinned:false,favorited:false};
       setPreviewRec(fr);
-      if(saveAfter){const saved=await saveRecipeToDB(fr);const finalRec=saved?{...fr,id:saved.id}:fr;setRecipes(prev=>[finalRec,...prev]);setBettyMsg(L.saved(r.name));setPreviewRec(null);setSelRec(finalRec);setCookStep(0);setCookMode(true);setActiveTab("betty");}
+      if(saveAfter){
+        if(recipes.length>=RECIPE_LIMIT){setBettyMsg(lang==="bg"?`Достигна лимита от ${RECIPE_LIMIT} рецепти 🍳`:`You've reached the ${RECIPE_LIMIT} recipe limit 🍳`);setPreviewRec(null);return;}
+        const saved=await saveRecipeToDB(fr);const finalRec=saved?{...fr,id:saved.id}:fr;setRecipes(prev=>[finalRec,...prev]);setBettyMsg(L.saved(r.name));setPreviewRec(null);setSelRec(finalRec);setCookStep(0);setCookMode(true);setActiveTab("betty");
+      }
     }catch{setPreviewRec(null);setBettyMsg(L.glitch);}
   };
 
@@ -609,11 +624,18 @@ function BettyApp() {
     setFridgeLoading(false);
   };
 
+  const bumpBettyQ = () => {
+    const today = new Date().toISOString().slice(0,10);
+    const next = bettyQUsed + 1;
+    try { localStorage.setItem('betty_q_today', JSON.stringify({count:next,date:today})); } catch {}
+    setBettyQUsed(next);
+  };
   const handleChat=async()=>{
     if(!chatMsg.trim()||chatLoading)return;
+    if(bettyQUsed>=BETTY_Q_LIMIT){setChatHistory(prev=>[...prev,{role:"assistant",content:lang==="bg"?"Достигна дневния лимит от 5 въпроса. Върни се утре! 🌸":"You've reached today's limit of 5 questions. Come back tomorrow! 🌸"}]);setChatMsg("");return;}
     const userMsg=chatMsg;setChatMsg("");if(chatInputRef.current){chatInputRef.current.style.height="auto";}
     const newH=[...chatHistory,{role:"user",content:userMsg}];
-    setChatHistory(newH);setChatLoading(true);
+    setChatHistory(newH);setChatLoading(true);bumpBettyQ();
     try{
       const data=await callBetty({model:"claude-sonnet-4-6",max_tokens:1000,system:SYSTEM+(selRec&&cookMode?` Currently cooking: "${selRec.title}".`:""),messages:newH});
       const reply=data.content?.map(c=>c.text||"").join("")||L.glitch;
@@ -777,30 +799,6 @@ function BettyApp() {
         )}
 
         {/* Plan */}
-        {showPlan && (
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,height:"100vh",background:"rgba(45,74,66,0.5)",zIndex:110,display:"flex",alignItems:"flex-end"}} onClick={e=>{if(e.target===e.currentTarget)setShowPlan(false);}}>
-            <div style={{width:"100%",background:"#fff",borderRadius:"24px 24px 0 0",padding:"24px 24px 80px",maxHeight:"75vh",overflowY:"auto"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-                <div style={{fontWeight:"bold",fontSize:18,color:C.text}}>💳 {L.managePlan}</div>
-                <button onClick={()=>setShowPlan(false)} style={{background:C.bg,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:C.textMuted,fontSize:16}}>×</button>
-              </div>
-              <div style={{background:C.green,borderRadius:16,padding:16,marginBottom:20}}>
-                <div style={{fontSize:11,fontWeight:"bold",color:C.textMuted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>{L.currentPlan}</div>
-                <div style={{fontSize:20,fontWeight:"bold",color:C.text}}>Free</div>
-                <div style={{fontSize:13,color:C.textMuted,marginTop:4}}>{lang==="bg"?"10 рецепти · Ограничени въпроси":"10 recipes · Limited questions"}</div>
-              </div>
-              <div style={{border:`2px solid ${C.btn}`,borderRadius:16,padding:16,marginBottom:16,position:"relative"}}>
-                <div style={{position:"absolute",top:-12,left:16,background:C.btn,color:"#fff",fontSize:11,fontWeight:"bold",padding:"3px 12px",borderRadius:20}}>{lang==="bg"?"Препоръчано":"Recommended"}</div>
-                <div style={{fontSize:20,fontWeight:"bold",color:C.text,marginBottom:12}}>Pro — $2.99/mo</div>
-                {(lang==="bg"?["Неограничени рецепти","Неограничени въпроси","Импорт от линк","Приоритетна поддръжка"]:["Unlimited recipes","Unlimited questions","Link import","Priority support"]).map((f,i)=>(
-                  <div key={i} style={{fontSize:13,color:C.text,marginBottom:6,display:"flex",gap:8}}><span style={{color:C.green,fontWeight:"bold"}}>✓</span>{f}</div>
-                ))}
-                <button onClick={()=>alert(lang==="bg"?"Скоро!":"Coming soon!")} style={{width:"100%",padding:"13px",background:C.btn,color:"#fff",border:"none",borderRadius:12,fontSize:14,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",marginTop:12}}>{L.subscribePro}</button>
-              </div>
-              <button onClick={()=>{if(window.confirm(lang==="bg"?"Сигурен ли си?":"Are you sure?"))alert(lang==="bg"?"Отказан":"Cancelled");}} style={{width:"100%",padding:"12px",background:"#fff",border:`1.5px solid ${C.border}`,borderRadius:12,color:C.textMuted,fontSize:13,cursor:"pointer",fontFamily:"Georgia,serif"}}>{L.cancelSub}</button>
-            </div>
-          </div>
-        )}
 
         {/* Settings */}
         {showReport && (
@@ -872,7 +870,6 @@ function BettyApp() {
                     {icon:"🔑",label:lang==="bg"?"Смени паролата":"Change password",action:()=>setInfoModal({title:lang==="bg"?"Смени паролата":"Change password",body:lang==="bg"?"Кликни бутона по-долу, за да получиш линк за смяна на паролата.":"Please click the button below to reset your password.",btnLabel:lang==="bg"?"Изпрати линк":"Send reset link",btnAction:sendPasswordReset})},
                     {icon:"🔒",label:lang==="bg"?"Поверителност":"Privacy Policy",action:()=>setShowPolicyOverlay(true)},
                     {icon:"📊",label:lang==="bg"?"Моите данни":"My data",action:()=>setInfoModal({title:lang==="bg"?"Моите данни":"My data",body:<div style={{lineHeight:2}}><div>📧 {user?.email}</div><div>🍳 {lang==="bg"?`${recipes.length} рецепти`:`${recipes.length} recipes`}</div><div>🌐 {lang==="bg"?"Български":"English"}</div></div>})},
-                    {icon:"💳",label:L.managePlan,action:()=>{setShowSettings(false);setShowPlan(true);}},
                     {icon:"🌐",label:lang==="bg"?"Версия":"App version",action:()=>setInfoModal({title:"betty. 🌸",body:"Version 1.0\n\nMade with love for home cooks everywhere."})},
                     {icon:"🚨",label:lang==="bg"?"Докладвай проблем":"Report a problem",action:()=>{
                       setShowSettings(false);
@@ -1296,9 +1293,10 @@ function BettyApp() {
                     <div ref={chatEndRef}/>
                   </div>
                   </>
+                  <div style={{fontSize:11,color:C.textMuted,textAlign:"right",marginBottom:4}}>{bettyQUsed>= BETTY_Q_LIMIT?(lang==="bg"?"Лимитът за днес е достигнат":"Today's limit reached"):`${BETTY_Q_LIMIT-bettyQUsed} ${lang==="bg"?"въпроса останали днес":"questions left today"}`}</div>
                   <div style={{display:"flex",gap:8,background:"#fff",borderRadius:18,padding:"14px 16px",border:`1.5px solid ${C.border}`,boxShadow:"0 4px 14px rgba(180,220,200,0.2)"}}>
                     <textarea ref={chatInputRef} value={chatMsg} rows={1} onChange={e=>{setChatMsg(e.target.value);e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();handleChat();}}} placeholder="" style={{flex:1,border:"none",outline:"none",fontSize:14,background:"transparent",color:C.text,resize:"none",overflow:"hidden",lineHeight:"1.4",fontFamily:"Georgia,serif",padding:0,minHeight:22,maxHeight:120}}/>
-                    <Btn onClick={handleChat} disabled={chatLoading} style={{padding:"8px 14px",fontSize:16,borderRadius:12}}>↑</Btn>
+                    <Btn onClick={handleChat} disabled={chatLoading||bettyQUsed>=BETTY_Q_LIMIT} style={{padding:"8px 14px",fontSize:16,borderRadius:12}}>↑</Btn>
                   </div>
                 </div>
               )}
