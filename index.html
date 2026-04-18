@@ -565,7 +565,7 @@ function BettyApp() {
   const fetchFullRecipe=async(r,saveAfter=false)=>{
     setPreviewRec({name:r.name,emoji:r.emoji,loading:true});
     try{
-      const data=await callBetty({model:"claude-sonnet-4-6",max_tokens:2000,system:`You are Betty. Create a full recipe in ${L.bettyLang}. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner","steps":["step1"],"ingredients":["item"],"calories":"~XXX kcal"}`,messages:[{role:"user",content:`Create a full recipe for: ${r.name}`}]});
+      const data=await callBetty({model:"claude-sonnet-4-6",max_tokens:2000,system:SYSTEM+` Create a full recipe in ${L.bettyLang}. Return ONLY valid JSON: {"title":"Name","time":"X min","tags":["tag"],"betty":"funny one-liner","steps":["step1"],"ingredients":["item"],"calories":"~XXX kcal"}`,messages:[{role:"user",content:`Create a full recipe for: ${r.name}`}]});
       const clean=data.content?.map(c=>c.text||"").join("").trim().replace(/```json|```/g,"").trim();
       const p=JSON.parse(clean);
       const fr={id:Date.now(),title:p.title||r.name,time:p.time||r.time,tags:p.tags||["saved"],img:r.emoji,photo:null,betty:p.betty||r.why,steps:p.steps||[],ingredients:p.ingredients||[],calories:p.calories||null,pinned:false,favorited:false};
