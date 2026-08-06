@@ -1102,7 +1102,7 @@ function BettyApp() {
         </div>
 
         {/* CONTENT */}
-        <div style={{padding:"20px 20px 100px"}}>
+        <div style={{padding:cookMode&&activeTab==="betty"?"20px 20px 190px":"20px 20px 100px"}}>
 
           {/* COOKBOOK */}
           {activeTab==="saved" && (
@@ -1237,7 +1237,7 @@ function BettyApp() {
                       </div>
                     ))}
                   </div>
-                  <div style={{position:"sticky",bottom:0,background:C.bg,paddingTop:12,paddingBottom:8,display:"flex",gap:10,zIndex:10}}>
+                  <div style={{position:"fixed",bottom:88,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:390,boxSizing:"border-box",background:C.bg,padding:"12px 20px 10px",display:"flex",gap:10,zIndex:150,boxShadow:"0 -8px 16px -8px rgba(45,74,66,0.12)"}}>
                     <button onClick={()=>setCookStep(s=>Math.max(0,s-1))} disabled={cookStep===0} style={{flex:1,padding:"14px",background:cookStep===0?"#ddd":"#fff",border:`1.5px solid ${cookStep===0?"#ddd":C.border}`,borderRadius:14,fontSize:14,color:cookStep===0?"#bbb":C.text,cursor:cookStep===0?"default":"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{L.back}</button>
                     <Btn onClick={()=>{if(cookStep<selRec.steps.length-1){setCookStep(s=>s+1);}else{setVictoryTitle(selRec.title);const he={title:selRec.title,tags:selRec.tags,time:selRec.time,cooked:new Date().toLocaleDateString()};const nh=[he,...cookHistory].slice(0,10);setCookHistory(nh);try{localStorage.setItem('betty_history',JSON.stringify(nh));}catch{}setShowVictory(true);}}} style={{flex:2,padding:"14px",fontSize:14,borderRadius:14}}>
                       {cookStep===selRec.steps.length-1?L.doneBtn:L.nextStep}
