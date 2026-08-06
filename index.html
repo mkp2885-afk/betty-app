@@ -16,7 +16,8 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2" crossorigin="anonymous"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:#F0F7F4; font-family:Georgia,serif; }
+    html, body { height:100%; overflow:hidden; overscroll-behavior:none; background:#F0F7F4; font-family:Georgia,serif; }
+    #root { height:100%; }
     input,textarea,button,select { font-family:Georgia,serif; }
     ::-webkit-scrollbar { display:none; }
   </style>
@@ -771,8 +772,8 @@ function BettyApp() {
   const showImageHeader = activeTab==="saved"||activeTab==="tonight"||activeTab==="betty";
 
   return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",justifyContent:"center"}}>
-      <div style={{width:"100%",maxWidth:"390px",minHeight:"100vh",background:C.bg,position:"relative"}}>
+    <div style={{height:"100vh",background:C.bg,display:"flex",justifyContent:"center",overflow:"hidden"}}>
+      <div style={{width:"100%",maxWidth:"390px",height:"100%",background:C.bg,position:"relative",overflowY:"auto",overscrollBehaviorY:"contain",WebkitOverflowScrolling:"touch"}}>
 
         {PolicyOverlay}
         {/* OVERLAYS */}
